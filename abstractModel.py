@@ -87,7 +87,7 @@ model.cons5 = pyo.Constraint(model.J,rule=ax_constraint_rule5)
 model.cons6 = pyo.Constraint(model.J,rule=ax_constraint_rule6)
 
 
-model.name = "Deneme"
+model.name = "DroopControlledIMG"
 opt = pyo.SolverFactory("ipopt")
 instance = model.create_instance(filename=("C:\\Users\\Administrator\\Py Files\\model.dat"))
 opt.options['max_iter'] = 10000
