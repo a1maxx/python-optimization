@@ -8,7 +8,7 @@ Created on Mon May 31 13:06:04 2021
 # pyomo --solver=ipopt "C:\\Users\\Administrator\\Py Files\\abstractModel.py" "C:\\Users\\Administrator\\Py Files\\model.dat"
 
 import pyomo.environ as pyo
-# from pyomo.opt import SolverFactory
+from pyomo.opt import SolverFactory
 
 
 model = pyo.AbstractModel()
