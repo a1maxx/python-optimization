@@ -66,3 +66,38 @@ print('x:', value(model.x))
 print('y:', value(model.y))
 
 #%%
+import pyomo.environ as pyo
+from pyomo.environ import SolverFactory
+
+m = pyo.ConcreteModel()
+
+index = [1,2,3,4]
+m.x = pyo.Var(index,domain = pyo.Binary,initialize = 0)
+
+m.c1 = pyo.Constraint(expr=sum([m.x[i] for i in index])<=3)
+print('Constraint 1: {}'.format(str(m.c1.body)))
+# Constraint 1: x[1] + x[2] + x[3] + x[4]
+m.fixed_lambda = pyo.Var(domain = pyo.NonNegativeReals)
+m.lagrangian = pyo.Objective(expr = m.fixed_lambda * m.c1.body,sense=pyo.minimize)
+print('Lagrangian expression: {}'.format(str(m.lagrangian.expr)))
+solver = SolverFactory('ipopt')
+solver.solve(model, tee=True)
+
+# Lagrangian expression: fixed_lambda*(x[1] + x[2] + x[3] + x[4])
+
+#%%
+
+
+def square_digits(num):
+    list = []
+    num = str(num)
+    
+    for i in range(len(num)):
+        list.append((int(num[i])**2))
+    return list
+ 
+square_digits(9119)
+
+
+
+
