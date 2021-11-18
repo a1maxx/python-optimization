@@ -82,9 +82,9 @@ data.load(filename=filename, range='priset', param="PRI")
 # Voltage magnitude of the node at time t
 model.v = pyo.Var(model.A, model.T, within=NonNegativeReals, bounds=(0.95, 1.05))
 # Phase difference between Vit and Vjt it can also be model.line instead of two model.A
-model.theta = pyo.Var(model.A, model.A, model.T)
+model.theta = pyo.Var(model.line, model.T)
 # Active/Reactive power flow at time t
-model.p = pyo.Var(model.A, model.A, model.T)
+model.p = pyo.Var(model.line, model.T)
 model.q = pyo.Var(model.A, model.A, model.T)
 # Active/Reactive power generation
 model.pg = pyo.Var(model.A, model.T)
