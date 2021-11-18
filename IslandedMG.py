@@ -51,23 +51,10 @@ model.SOC0 = pyo.Param(model.A)
 data.load(filename=filename, range='soc0', param='SOC0')
 
 instance = model.create_instance(data)
-instance.pprint()
+# instance.pprint()
 
-model.EPS = pyo.Param(initialize=0.05)
+model.EPS = pyo.Param(initialize=5)
 
-model.CG = pyo.Param(default=10)
-# Redispatch cost of dispatchable unit $/kW
-model.CRG = pyo.Param(default=10)
-# Emission cost of dispatchable unit $/kW
-model.CEM = pyo.Param(default=10)
-# Emission factor of dispatchable unit kg/kWh
-model.CS = pyo.Param(default=10)
-# Price of selling electricity to consumers $/kW
-model.CD = pyo.Param(default=10)
-# Price of selling electricity to upstream grid
-model.CS = pyo.Param(default=10)
-# Price of buying electricity from upstream grid
-model.CS = pyo.Param(default=10)
 # Charging efficiency of energy storage
 model.PIC = pyo.Param(default=1)
 # Discharging efficiency of energy storage
@@ -80,34 +67,35 @@ data.load(filename=filename, range='priset', param="PRI")
 
 # Decision variables
 # Voltage magnitude of the node at time t
-model.v = pyo.Var(model.A, model.T, within=NonNegativeReals, bounds=(0.95, 1.05))
+model.v = pyo.Var(model.A, model.T, within=NonNegativeReals)
 # Phase difference between Vit and Vjt it can also be model.line instead of two model.A
 model.theta = pyo.Var(model.line, model.T)
 # Active/Reactive power flow at time t
 model.p = pyo.Var(model.line, model.T)
-model.q = pyo.Var(model.A, model.A, model.T)
+model.q = pyo.Var(model.line, model.T)
 # Active/Reactive power generation
-model.pg = pyo.Var(model.A, model.T)
-model.qg = pyo.Var(model.A, model.T)
+model.pg = pyo.Var(model.A, model.T, within=pyo.NonNegativeReals)
+model.qg = pyo.Var(model.A, model.T, within=pyo.NonNegativeReals)
 # Active power output of the energy storage at time t
 model.pe = pyo.Var(model.A, model.T)
 # Charging state of ES
-model.lamb = pyo.Var(model.A, model.T)
+model.lamb = pyo.Var(model.A, model.T, within=pyo.Binary)
 # Discharging state of ES
-model.phi = pyo.Var(model.A, model.T)
+model.phi = pyo.Var(model.A, model.T, within=pyo.Binary)
 # Power deficiency of the distribution system operator
 model.soc = pyo.Var(model.A, model.T0)
 model.n1 = pyo.Var()
 # Redispatch cost f the MT at time t
 model.crd = pyo.Var(model.A, model.T)
 # Indicator of a boundary line of an MG
-model.x = pyo.Var(model.A, model.A, within=pyo.Binary)
+model.x = pyo.Var(model.line, within=pyo.Binary)
 # Connection status of the load at time t
 model.y = pyo.Var(model.A, model.T, within=pyo.Binary)
 
 
 def obj_expression(m):
-    return sum(sum(m.v[k, t] - m.VN + sum(m.x[k, j] for j in m.A) + m.PRI[k] * m.PD[k, t] * (1 - m.y[k, t])
+    return sum(sum(abs(m.v[k, t] - m.VN) + sum(m.x[k, j] for j in m.A if (k, j) in m.line) + m.PRI[k] * m.PD[k, t] * (
+            1 - m.y[k, t])
                    for k in m.A) for t in m.T)
 
 
@@ -118,23 +106,25 @@ def constraint_rule32(m, k, t):
     return 1 - m.EPS <= m.v[k, t]
 
 
+model.cons32 = pyo.Constraint(model.A, model.T, rule=constraint_rule32)
+
+
 def constraint_rule32_2(m, k, t):
     return m.v[k, t] <= 1 + m.EPS
 
 
-model.cons32 = pyo.Constraint(model.A, model.T, rule=constraint_rule32)
 model.cons32_2 = pyo.Constraint(model.A, model.T, rule=constraint_rule32_2)
 
 
 def constraint_rule33(m, k, t):
-    return m.pg[k, t] - m.y[k, t] * m.PD[k, t] + m.PR[k, t] == sum(m.p[k, j, t] for j in m.A)
+    return m.pg[k, t] - m.y[k, t] * m.PD[k, t] + m.PR[k, t] == sum(m.p[k, j, t] for j in m.A if (k, j) in m.line)
 
 
 model.cons33 = pyo.Constraint(model.A, model.T, rule=constraint_rule33)
 
 
 def constraint_rule34(m, k, t):
-    return m.qg[k, t] - m.y[k, t] * m.QD[k, t] + m.QR[k, t] == sum(m.q[k, j, t] for j in m.A)
+    return m.qg[k, t] - m.y[k, t] * m.QD[k, t] + m.QR[k, t] == sum(m.q[k, j, t] for j in m.A if (k, j) in m.line)
 
 
 model.cons34 = pyo.Constraint(model.A, model.T, rule=constraint_rule34)
@@ -164,15 +154,27 @@ model.cons37 = pyo.Constraint(model.Gen, model.T, rule=constraint_rule37)
 
 
 def constraint_rule38(m, k, t):
-    return m.pe[k, t] <= 200 * m.phi[k, t]
-
-
-def constraint_rule38_2(m, k, t):
-    return -m.pe[k, t] * m.lamb[k, t] <= m.pe[k, t]
+    return m.pe[k, t] <= 40 * m.phi[k, t]
 
 
 model.cons38 = pyo.Constraint(model.A, model.T, rule=constraint_rule38)
+
+
+def constraint_rule38_2(m, k, t):
+    return -40 * m.lamb[k, t] <= m.pe[k, t]
+
+
 model.cons38_2 = pyo.Constraint(model.A, model.T, rule=constraint_rule38_2)
+
+
+def constraint_rule38_3(m, k, t):
+    if m.EC[k] == 0:
+        return m.pe[k, t] == 0
+    else:
+        return pyo.Constraint.Skip
+
+
+model.cons38_3 = pyo.Constraint(model.A, model.T, rule=constraint_rule38_3)
 
 
 def constraint_rule39(m, k, t):
@@ -207,7 +209,7 @@ def constraint_rule41(m, k, t):
 
 
 def constraint_rule41_2(m, k, t):
-    return m.soc[k, t] <= 100
+    return m.soc[k, t] <= m.SOC0[k]
 
 
 model.cons41 = pyo.Constraint(model.A, model.T, rule=constraint_rule41)
@@ -222,38 +224,41 @@ def constraint_rule42(m, t):
 model.cons42 = pyo.Constraint(model.T, rule=constraint_rule42)
 
 
+def constraint_rule42_2(m, k, t):
+    if k not in m.Gen:
+        return m.pg[k, t] == 0
+    else:
+        return pyo.Constraint.Skip
+
+
+model.cons42_2 = pyo.Constraint(model.A, model.T, rule=constraint_rule42_2)
+
+
+def constraint_rule42_3(m, k, t):
+    if k not in m.Gen:
+        return m.qg[k, t] == 0
+    else:
+        return pyo.Constraint.Skip
+
+
+model.cons42_3 = pyo.Constraint(model.A, model.T, rule=constraint_rule42_3)
+
+
 def constraint_rule43(m, t):
     return sum(m.qg[k, t] + m.QR[k, t] for k in m.A) >= sum(m.QD[k, t] for k in m.A)
 
 
 model.cons43 = pyo.Constraint(model.T, rule=constraint_rule43)
 
+# instance.pprint()
+
 instance = model.create_instance(data)
 
-#instance.pprint()
-
-model.name = "DroopControlledIMG"
 opt = pyo.SolverFactory("ipopt")
 
-opt.options['max_iter'] = 100000
+instance.name = "DroopControlledIMG"
+opt.options['max_iter'] = 1000000
+opt.options['ma27_pivtol'] = 1e-5
+
+
 results = opt.solve(instance, tee=True)
-
-
-for v in instance.component_objects(pyo.Var, active=True):
-    print("Variable", v)
-    for index in v:
-        print("   ", index, pyo.value(v[index]))
-
-
-print("Print values for all variables")
-for v in instance.component_data_objects(pyo.Var):
-    print(str(v), v.value)
-
-for row in instance.A:
-    for column in instance.T:
-        print(pyo.value(instance.v[row, column]))
-
-for i, j in instance.line:
-    for k in instance.T:
-        print(pyo.value(instance.theta[i, j, k]))
-
