@@ -79,17 +79,19 @@ model.q = pyo.Var(model.line, model.T)
 # Active/Reactive power generation
 model.pg = pyo.Var(model.A, model.T, within=pyo.NonNegativeReals)
 model.qg = pyo.Var(model.A, model.T, within=pyo.NonNegativeReals)
+
 # Active power output of the energy storage at time t
-model.pe = pyo.Var(model.A, model.T)
+# model.pe = pyo.Var(model.A, model.T)
 # Charging state of ES
-model.lamb = pyo.Var(model.A, model.T, within=pyo.Binary)
+# model.lamb = pyo.Var(model.A, model.T, within=pyo.Binary)
 # Discharging state of ES
-model.phi = pyo.Var(model.A, model.T, within=pyo.Binary)
+# model.phi = pyo.Var(model.A, model.T, within=pyo.Binary)
 # Power deficiency of the distribution system operator
-model.soc = pyo.Var(model.A, model.T0)
-model.n1 = pyo.Var()
+# model.soc = pyo.Var(model.A, model.T0)
+# model.n1 = pyo.Var()
 # Redispatch cost f the MT at time t
-model.crd = pyo.Var(model.A, model.T)
+# model.crd = pyo.Var(model.A, model.T)
+
 # Indicator of a boundary line of an MG
 model.x = pyo.Var(model.line, within=pyo.Binary)
 # Connection status of the load at time t
@@ -109,14 +111,14 @@ def constraint_rule32(m, k, t):
     return 1 - m.EPS <= m.v[k, t]
 
 
-model.cons32 = pyo.Constraint(model.A, model.T, rule=constraint_rule32)
+# model.cons32 = pyo.Constraint(model.A, model.T, rule=constraint_rule32)
 
 
 def constraint_rule32_2(m, k, t):
     return m.v[k, t] <= 1 + m.EPS
 
 
-model.cons32_2 = pyo.Constraint(model.A, model.T, rule=constraint_rule32_2)
+# model.cons32_2 = pyo.Constraint(model.A, model.T, rule=constraint_rule32_2)
 
 
 def constraint_rule33(m, k, t):
@@ -153,21 +155,21 @@ def constraint_rule37(m, k, t):
     return m.pg[k, t] ** 2 + m.qg[k, t] ** 2 <= m.SG[k]
 
 
-model.cons37 = pyo.Constraint(model.Gen, model.T, rule=constraint_rule37)
+# model.cons37 = pyo.Constraint(model.Gen, model.T, rule=constraint_rule37)
 
 
 def constraint_rule38(m, k, t):
     return m.pe[k, t] <= 2 * m.phi[k, t]
 
 
-model.cons38 = pyo.Constraint(model.A, model.T, rule=constraint_rule38)
+# model.cons38 = pyo.Constraint(model.A, model.T, rule=constraint_rule38)
 
 
 def constraint_rule38_2(m, k, t):
     return -2 * m.lamb[k, t] <= m.pe[k, t]
 
 
-model.cons38_2 = pyo.Constraint(model.A, model.T, rule=constraint_rule38_2)
+# model.cons38_2 = pyo.Constraint(model.A, model.T, rule=constraint_rule38_2)
 
 
 def constraint_rule38_3(m, k, t):
@@ -177,21 +179,21 @@ def constraint_rule38_3(m, k, t):
         return pyo.Constraint.Skip
 
 
-model.cons38_3 = pyo.Constraint(model.A, model.T, rule=constraint_rule38_3)
+# model.cons38_3 = pyo.Constraint(model.A, model.T, rule=constraint_rule38_3)
 
 
 def constraint_rule39(m, k, t):
     return m.lamb[k, t] + m.phi[k, t] <= 1
 
 
-model.cons39 = pyo.Constraint(model.A, model.T, rule=constraint_rule39)
+# model.cons39 = pyo.Constraint(model.A, model.T, rule=constraint_rule39)
 
 
 def constraint_rule40_2(m, k):
     return m.soc[k, 0] == m.SOC0[k]
 
 
-model.cons40_2 = pyo.Constraint(model.A, rule=constraint_rule40_2)
+# model.cons40_2 = pyo.Constraint(model.A, rule=constraint_rule40_2)
 
 
 # Time interval assumed to be 1
@@ -203,7 +205,7 @@ def constraint_rule40(m, k, t):
                 m.phi[k, t] * m.pe[k, t] * m.PID ** -1 + m.lamb[k, t] * m.pe[k, t] * m.PIC)
 
 
-model.cons40 = pyo.Constraint(model.A, model.T, rule=constraint_rule40)
+# model.cons40 = pyo.Constraint(model.A, model.T, rule=constraint_rule40)
 
 
 # Maximum possible SOC assumed to be 100
@@ -211,20 +213,21 @@ def constraint_rule41(m, k, t):
     return 0 <= m.soc[k, t]
 
 
+# model.cons41 = pyo.Constraint(model.A, model.T, rule=constraint_rule41)
+
+
 def constraint_rule41_2(m, k, t):
     return m.soc[k, t] <= m.SOC0[k]
 
 
-model.cons41 = pyo.Constraint(model.A, model.T, rule=constraint_rule41)
-
-model.cons41_2 = pyo.Constraint(model.A, model.T, rule=constraint_rule41_2)
+# model.cons41_2 = pyo.Constraint(model.A, model.T, rule=constraint_rule41_2)
 
 
 def constraint_rule42(m, t):
     return sum(m.pg[k, t] + m.pe[k, t] + m.PR[k, t] for k in m.A) >= sum(m.PD[k, t] for k in m.A)
 
 
-model.cons42 = pyo.Constraint(model.T, rule=constraint_rule42)
+# model.cons42 = pyo.Constraint(model.T, rule=constraint_rule42)
 
 
 def constraint_rule42_2(m, k, t):
@@ -234,7 +237,7 @@ def constraint_rule42_2(m, k, t):
         return pyo.Constraint.Skip
 
 
-model.cons42_2 = pyo.Constraint(model.A, model.T, rule=constraint_rule42_2)
+# model.cons42_2 = pyo.Constraint(model.A, model.T, rule=constraint_rule42_2)
 
 
 def constraint_rule42_3(m, k, t):
@@ -244,26 +247,27 @@ def constraint_rule42_3(m, k, t):
         return pyo.Constraint.Skip
 
 
-model.cons42_3 = pyo.Constraint(model.A, model.T, rule=constraint_rule42_3)
+# model.cons42_3 = pyo.Constraint(model.A, model.T, rule=constraint_rule42_3)
 
 
 def constraint_rule43(m, t):
     return sum(m.qg[k, t] + m.QR[k, t] for k in m.A) >= sum(m.QD[k, t] for k in m.A)
 
 
-model.cons43 = pyo.Constraint(model.T, rule=constraint_rule43)
+# model.cons43 = pyo.Constraint(model.T, rule=constraint_rule43)
 
 # instance.pprint()
 instance = model.create_instance(data)
 
-instance.cons32.deactivate()
-instance.cons32_2.deactivate()
-instance.cons37.deactivate()    # Power factor pg ** 2 + qg ** 2 <= SG
-instance.cons40.deactivate()
-instance.cons42.deactivate()    # Total PD
-instance.cons42_2.deactivate()  # pg capacity
-instance.cons42_3.deactivate()  # qg capacity
-instance.cons43.deactivate()  # Total QD
+# instance.cons32.deactivate()      # Voltage lower bound
+# instance.cons32_2.deactivate()    # Voltage upper bound
+# instance.cons37.deactivate()      # Power factor pg ** 2 + qg ** 2 <= SG
+# instance.cons39.deactivate()      # Energy storage status
+# instance.cons40.deactivate()      # SOC
+# instance.cons42.deactivate()      # Total PD
+# instance.cons42_2.deactivate()    # pg capacity
+# instance.cons42_3.deactivate()    # qg capacity
+# instance.cons43.deactivate()      # Total QD
 
 opt = pyo.SolverFactory("ipopt")
 instance.name = "DroopControlledIMG"

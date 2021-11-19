@@ -4,8 +4,8 @@ import pyomo.environ as pyo
 # noinspection PyUnresolvedReferences
 from pyomo.environ import NonNegativeReals
 from pyomo.util.infeasible import log_infeasible_constraints
-from IslandedMG import instance
 import logging
+from IslandedMG import instance
 
 for v in instance.component_objects(pyo.Var, active=True):
     print("Variable", v)
@@ -25,4 +25,6 @@ for i, j in instance.line:
         print(pyo.value(instance.theta[i, j, k]))
 
 log_infeasible_constraints(instance, log_expression=True, log_variables=True)
-logging.basicConfig(filename='example.log', level=logging.INFO)
+logging.basicConfig(filename='examplee.log', level=logging.INFO)
+instance
+
