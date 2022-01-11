@@ -31,7 +31,7 @@ d = dict()
 for i in df.index:
     d[df.loc[i].iat[0], df.loc[i].iat[1]] = df.loc[i].iat[2]
 
-for i in range(1, 31):
+for i in range(1, 7):
     target = 0
     for key, v in d.items():
         if i in key:
@@ -44,7 +44,7 @@ d2 = dict()
 for i in df.index:
     d2[df.loc[i].iat[0], df.loc[i].iat[1]] = df.loc[i].iat[4]
 
-for i in range(1, 31):
+for i in range(1, 7):
     target = 0
     for key, v in d2.items():
         if i in key:
@@ -64,8 +64,8 @@ data.load(filename=filename, range="QRTable", param='QR', format='array')
 model.SG = pyo.Param(model.Gen)
 data.load(filename=filename, range='capgen', param="SG")
 
-model.SOC0 = pyo.Param(model.A)
-data.load(filename=filename, range='soc0', param='SOC0')
+# model.SOC0 = pyo.Param(model.A)
+# data.load(filename=filename, range='soc0', param='SOC0')
 
 instance = model.create_instance(data)
 # instance.pprint()
@@ -164,79 +164,14 @@ model.cons36 = pyo.Constraint(model.line, model.T, rule=constraint_rule36)
 
 
 def constraint_rule37(m, k, t):
-    return m.pg[k, t] ** 2 + m.qg[k, t] ** 2 <= m.SG[k]
+    return m.pg[k, t] ** 2 + m.qg[k, t] ** 2 <= m.SG[k]**2
 
 
 model.cons37 = pyo.Constraint(model.Gen, model.T, rule=constraint_rule37)
 
 
-def constraint_rule38(m, k, t):
-    return m.pe[k, t] <= 2 * m.phi[k, t]
-
-
-# model.cons38 = pyo.Constraint(model.A, model.T, rule=constraint_rule38)
-
-
-def constraint_rule38_2(m, k, t):
-    return -2 * m.lamb[k, t] <= m.pe[k, t]
-
-
-# model.cons38_2 = pyo.Constraint(model.A, model.T, rule=constraint_rule38_2)
-
-
-def constraint_rule38_3(m, k, t):
-    if m.EC[k] == 0:
-        return m.pe[k, t] == 0
-    else:
-        return pyo.Constraint.Skip
-
-
-# model.cons38_3 = pyo.Constraint(model.A, model.T, rule=constraint_rule38_3)
-
-
-def constraint_rule39(m, k, t):
-    return m.lamb[k, t] + m.phi[k, t] <= 1
-
-
-# model.cons39 = pyo.Constraint(model.A, model.T, rule=constraint_rule39)
-
-
-def constraint_rule40_2(m, k):
-    return m.soc[k, 0] == m.SOC0[k]
-
-
-# model.cons40_2 = pyo.Constraint(model.A, rule=constraint_rule40_2)
-
-
-# Time interval assumed to be 1
-def constraint_rule40(m, k, t):
-    if m.EC[k] == 0:
-        return pyo.Constraint.Skip
-    else:
-        return m.soc[k, t] == m.soc[k, t - 1] - 1 / m.EC[k] * (
-                m.phi[k, t] * m.pe[k, t] * m.PID ** -1 + m.lamb[k, t] * m.pe[k, t] * m.PIC)
-
-
-# model.cons40 = pyo.Constraint(model.A, model.T, rule=constraint_rule40)
-
-
-# Maximum possible SOC assumed to be 100
-def constraint_rule41(m, k, t):
-    return 0 <= m.soc[k, t]
-
-
-# model.cons41 = pyo.Constraint(model.A, model.T, rule=constraint_rule41)
-
-
-def constraint_rule41_2(m, k, t):
-    return m.soc[k, t] <= m.SOC0[k]
-
-
-# model.cons41_2 = pyo.Constraint(model.A, model.T, rule=constraint_rule41_2)
-
-
 def constraint_rule42(m, t):
-    return sum(m.pg[k, t] + m.pe[k, t] + m.PR[k, t] for k in m.A) >= sum(m.PD[k, t] for k in m.A)
+    return sum(m.pg[k, t] + m.PR[k, t] for k in m.A) >= sum(m.PD[k, t] for k in m.A)
 
 
 model.cons42 = pyo.Constraint(model.T, rule=constraint_rule42)
@@ -269,30 +204,12 @@ def constraint_rule43(m, t):
 model.cons43 = pyo.Constraint(model.T, rule=constraint_rule43)
 
 
-def constraint_rule44(m, k):
-    return m.x[k, k] == 1
-
-
-model.cons44 = pyo.Constraint(model.A, rule=constraint_rule44)
-
-# instance.pprint()
-
-
-# instance.cons32.deactivate()      # Voltage lower bound
-# instance.cons32_2.deactivate()    # Voltage upper bound
-# instance.cons37.deactivate()      # Power factor pg ** 2 + qg ** 2 <= SG
-# instance.cons39.deactivate()      # Energy storage status
-# instance.cons40.deactivate()      # SOC
-# instance.cons42.deactivate()      # Total PD
-# instance.cons42_2.deactivate()    # pg capacity
-# instance.cons42_3.deactivate()    # qg capacity
-# instance.cons43.deactivate()      # Total QD
-
-
 instance = model.create_instance(data)
 
 opt = pyo.SolverFactory("ipopt")
 instance.name = "DroopControlledIMG"
 opt.options['max_iter'] = 100000
-opt.options['ma27_pivtol'] = 1e-4
+opt.options['acceptable_tol'] = 1e-3
+opt.options['tol'] = 1e-2
+opt.options['ma27_pivtol'] = 1e-3
 results = opt.solve(instance, tee=True)
