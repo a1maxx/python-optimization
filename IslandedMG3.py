@@ -12,10 +12,10 @@ model.T = pyo.Set()
 model.T0 = pyo.Set()
 model.Gen = pyo.Set()
 model.line = pyo.Set()
-model.PD = pyo.Param(model.A, model.T)
-model.QD = pyo.Param(model.A, model.T)
+model.PD = pyo.Param(model.A, model.T, domain=NonNegativeReals)
+model.QD = pyo.Param(model.A, model.T, domain=NonNegativeReals)
 
-filename = "C:\\Users\\Administrator\\Desktop\\Datas\\secData2.xlsx"
+filename = "/Users/my_mac/PycharmProjects/python-optimization/secData2.xlsx"
 data = pyo.DataPortal(model=model)
 data.load(filename=filename, range="Atable", format='set', set='A')
 data.load(filename=filename, range="Ttable", format='set', set='T')
