@@ -1,4 +1,3 @@
-
 import pyomo.environ as pyo
 from pyomo.environ import NonNegativeReals
 
@@ -13,15 +12,13 @@ model.I = pyo.RangeSet(1, 3)
 model.J = pyo.RangeSet(1, model.N)
 model.B = pyo.RangeSet(4, model.N)
 
-
 model.p0 = pyo.Param(model.J)
 model.q0 = pyo.Param(model.J)
 model.y = pyo.Param(model.J, model.J)
 model.t = pyo.Param(model.J, model.J)
 model.w0 = pyo.Param(initialize=1.0)
 model.V0 = pyo.Param(initialize=1.01)
-model.SGmax = pyo.Param(model.B,initialize=1.0)
-
+model.SGmax = pyo.Param(model.B, initialize=1.0)
 
 model.ql = pyo.Var(model.J, initialize=0, within=NonNegativeReals)
 model.pl = pyo.Var(model.J, initialize=0, within=NonNegativeReals)
@@ -37,7 +34,9 @@ model.nq = pyo.Var(model.B, domain=pyo.NonNegativeReals, initialize=0.5, bounds=
 model.w = pyo.Var(domain=pyo.PositiveReals)
 
 data = pyo.DataPortal()
-#data.load(filename="C:\\Users\\Administrator\\Py Files\\model.dat", model=model)
+
+
+# data.load(filename="C:\\Users\\Administrator\\Py Files\\model.dat", model=model)
 # data.load(filename="/Users/my_mac/PycharmProjects/python-optimization/model.dat", model=model)
 # model2 = model.create_instance(data)
 
@@ -60,7 +59,7 @@ def ax_constraint_rule2(m, i):
     return -sum(m.v[i] * m.v[j] * m.y[i, j] * pyo.sin(m.t[i, j] + m.d[j] - m.d[i]) for j in m.J) - m.ql[i] == 0
 
 
-## Droop buses
+# Droop buses
 def ax_constraint_rule3(m, i):
     # return the expression for the constraint for i
     return -((1 / m.mp[i]) * (m.w0 - m.w) - m.pl[i]) + sum(

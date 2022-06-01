@@ -1,4 +1,5 @@
 import pyomo.environ as pyo
+import math
 import cmath
 
 model = pyo.AbstractModel()
@@ -20,20 +21,23 @@ model.SGmax = pyo.Param(model.B, initialize=1.0)
 model.R = pyo.Param(model.J, model.J)
 model.X = pyo.Param(model.J, model.J)
 
-model.ql = pyo.Var(model.J, initialize=0, within=pyo.Reals)
-model.pl = pyo.Var(model.J, initialize=0, within=pyo.Reals)
-model.pg = pyo.Var(model.J, initialize=0, within=pyo.Reals)
-model.qg = pyo.Var(model.J, initialize=0, within=pyo.Reals)
-model.y = pyo.Var(model.J, model.J)
-model.t = pyo.Var(model.J, model.J)
+model.yReal = pyo.Var(model.J, model.J, initialize=1.0)
+model.yIm = pyo.Var(model.J, model.J,  initialize=1.0)
+model.yMag = pyo.Var(model.J, model.J,  initialize=1.0)
+model.yThe = pyo.Var(model.J, model.J,  initialize=1.0)
 
-model.v = pyo.Var(model.J, domain=pyo.Reals, initialize=1.0)
+model.ql = pyo.Var(model.J, initialize=0, within=pyo.NonNegativeReals)
+model.pl = pyo.Var(model.J, initialize=0, within=pyo.NonNegativeReals)
+model.pg = pyo.Var(model.J, initialize=0, within=pyo.NonNegativeReals)
+model.qg = pyo.Var(model.J, initialize=0, within=pyo.NonNegativeReals)
+
+model.v = pyo.Var(model.J, domain=pyo.NonNegativeReals, initialize=1.0)
 model.d = pyo.Var(model.J, domain=pyo.Reals, initialize=0)
 
-model.mp = pyo.Var(model.B, domain=pyo.Reals, initialize=0.5, bounds=(0, 1))
-model.nq = pyo.Var(model.B, domain=pyo.Reals, initialize=0.5, bounds=(0, 1))
+model.mp = pyo.Var(model.B, domain=pyo.NonNegativeReals, initialize=0.5, bounds=(0, 1))
+model.nq = pyo.Var(model.B, domain=pyo.NonNegativeReals, initialize=0.5, bounds=(0, 1))
 
-model.w = pyo.Var(domain=pyo.PositiveReals)
+model.w = pyo.Var(domain=pyo.NonNegativeReals)
 
 
 # data.load(filename="C:\\Users\\Administrator\\Py Files\\model.dat", model=model)
@@ -43,7 +47,7 @@ model.w = pyo.Var(domain=pyo.PositiveReals)
 # model2.pprint()
 
 def obj_expression(m):
-    return sum(abs(m.v[i] - 1.0) for i in m.J)
+    return sum(pow((m.v[i] - 1.0), 2) for i in m.J)
 
 
 model.o = pyo.Objective(rule=obj_expression, sense=pyo.minimize)
@@ -52,13 +56,13 @@ model.o = pyo.Objective(rule=obj_expression, sense=pyo.minimize)
 def ax_constraint_rule3(m, i):
     # return the expression for the constraint for i
     return (m.pg[i] - m.pl[i]) - sum(
-        m.v[i] * m.v[j] * m.y[i, j] * pyo.cos(m.t[i, j] + m.d[j] - m.d[i]) for j in m.J) == 0
+        m.v[i] * m.v[j] * m.yMag[i, j] * pyo.cos(m.yThe[i, j] + m.d[j] - m.d[i]) for j in m.J) == 0
 
 
 def ax_constraint_rule4(m, i):
     # return the expression for the constraint for i
     return (m.qg[i] - m.ql[i]) + sum(
-        m.v[i] * m.v[j] * m.y[i, j] * pyo.sin(m.t[i, j] + m.d[j] - m.d[i]) for j in m.J) == 0
+        m.v[i] * m.v[j] * m.yMag[i, j] * pyo.sin(m.yThe[i, j] + m.d[j] - m.d[i]) for j in m.J) == 0
 
 
 def ax_constraint_rule5(m, i):
@@ -79,54 +83,79 @@ def ax_constraint_rule6(m, i):
 def ax_constraint_rule5(m, i):
     return m.pl[i] == m.p0[i] * pow(m.v[i] / m.V0, m.alpha) * (1 + m.KPF * (m.w - m.w0))
 
+
 def ax_constraint_rule6(m, i):
     return m.ql[i] == m.q0[i] * pow(m.v[i] / m.V0, m.beta) * (1 + m.KQF * (m.w - m.w0))
 
 
-def admittance_rule(m, i, j):
+def admittanceReal(m, i, j):
     if i != j:
-        return m.y[i, j] == -pyo.sqrt((m.R[i, j] / (m.R[i, j] ** 2 + (m.X[i, j] * m.w) ** 2)) ** 2 +
-                                      ((-m.X[i, j] * m.w) / (m.R[i, j] ** 2 + (m.X[i, j] * m.w) ** 2)) ** 2)
+        return m.yReal[i, j] == m.R[i, j] / (pow(m.R[i, j], 2) + pow((m.X[i, j] * m.w), 2))
     else:
         return pyo.Constraint.Skip
 
 
-def admittance_rule2(m, i, j):
+def admittanceIm(m, i, j):
+    if i != j:
+        return m.yIm[i, j] == -(m.X[i, j] * m.w) / (pow(m.R[i, j], 2) + pow((m.X[i, j] * m.w), 2))
+    else:
+        return pyo.Constraint.Skip
+
+
+def admittanceDiagReal(m, i, j):
     if i == j:
-        return m.y[i, j] == sum(-m.y[i, f] for f in [1, 2, 3] if f != i)
+        return m.yReal[i, j] == sum(m.yReal[i, f] for f in [1, 2, 3] if f != i)
     else:
         return pyo.Constraint.Skip
 
 
-def admittance_rule3(m, i, j):
-    if i != j:
-        return m.t[i, j] == pyo.atan(((-m.X[i, j] * m.w) / (m.R[i, j] ** 2 + (m.X[i, j] * m.w) ** 2)) / (
-                m.R[i, j] / (m.R[i, j] ** 2 + (m.X[i, j] * m.w) ** 2)))
+def admittanceDiagIm(m, i, j):
+    if i == j:
+        return m.yIm[i, j] == sum(m.yIm[i, f] for f in [1, 2, 3] if f != i)
     else:
-        return m.t[i, j] == pyo.atan(
-            sum(((-m.X[i, f] * m.w) / (m.R[i, f] ** 2 + (m.X[i, f] * m.w) ** 2)) for f in [1, 2, 3] if f != i) /
-            sum((m.R[i, f] / (m.R[i, f] ** 2 + (m.X[i, f] * m.w) ** 2)) for f in [1, 2, 3] if f != i))
+        return pyo.Constraint.Skip
 
 
-model.cons13 = pyo.Constraint(model.J, model.J, rule=admittance_rule)
-model.cons14 = pyo.Constraint(model.J, model.J, rule=admittance_rule2)
-model.cons15 = pyo.Constraint(model.J, model.J, rule=admittance_rule3)
+def admittanceMag(m, i, j):
+    if i != j:
+        return m.yMag[i, j] == - pyo.sqrt(pow(m.yReal[i, j], 2) + pow(m.yIm[i, j], 2))
+    else:
+        return pyo.Constraint.Skip
 
-# model.cons1 = pyo.Constraint(model.J, rule=ax_constraint_rule)
-# model.cons2 = pyo.Constraint(model.J, rule=ax_constraint_rule2)
+
+def admittanceDiagMag(m, i, j):
+    if i == j:
+        return m.yMag[i, j] == -sum(m.yMag[i, f] for f in [1, 2, 3] if f != i)
+    else:
+        return pyo.Constraint.Skip
+
+
+def admittanceThe(m, i, j):
+    return m.yThe[i, j] == pyo.atan(m.yIm[i, j] / m.yReal[i, j])
+
 
 model.cons3 = pyo.Constraint(model.B, rule=ax_constraint_rule3)
 model.cons4 = pyo.Constraint(model.B, rule=ax_constraint_rule4)
 model.cons5 = pyo.Constraint(model.J, rule=ax_constraint_rule5)
 model.cons6 = pyo.Constraint(model.J, rule=ax_constraint_rule6)
-
+model.cons13 = pyo.Constraint(model.J, model.J, rule=admittanceReal)
+model.cons14 = pyo.Constraint(model.J, model.J, rule=admittanceIm)
+model.cons15 = pyo.Constraint(model.J, model.J, rule=admittanceDiagReal)
+model.cons16 = pyo.Constraint(model.J, model.J, rule=admittanceDiagIm)
+model.cons17 = pyo.Constraint(model.J, model.J, rule=admittanceMag)
+model.cons18 = pyo.Constraint(model.J, model.J, rule=admittanceDiagMag)
+model.cons19 = pyo.Constraint(model.J, model.J, rule=admittanceThe)
 
 model.name = "DroopControlledIMG"
 opt = pyo.SolverFactory("ipopt")
 # instance = model.create_instance(filename=("C:\\Users\\Administrator\\Py Files\\model.dat"))
 instance = model.create_instance(filename="model2.dat")
-opt.options['max_iter'] = 50000
-opt.options['ma27_pivtol'] = 1e-2
+instance.pprint()
+# opt.options['max_iter'] = 50000
+# opt.options['OF_fixed_variable_treatment'] = 'make_parameter'
+
+# results = opt.solve(instance, tee=True)
+
 results = opt.solve(instance, tee=True)
 
 instance.display()

@@ -28,6 +28,8 @@ model.qg = pyo.Var(model.J, initialize=0, within=pyo.NonNegativeReals)
 model.y = pyo.Var(model.J, model.J)
 model.t = pyo.Var(model.J, model.J)
 
+
+
 model.v = pyo.Var(model.J, domain=pyo.NonNegativeReals, initialize=1.0)
 model.d = pyo.Var(model.J, domain=pyo.Reals, initialize=0)
 
