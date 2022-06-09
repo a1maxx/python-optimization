@@ -22,9 +22,9 @@ model.R = pyo.Param(model.J, model.J)
 model.X = pyo.Param(model.J, model.J)
 
 model.yReal = pyo.Var(model.J, model.J, initialize=1.0)
-model.yIm = pyo.Var(model.J, model.J,  initialize=1.0)
-model.yMag = pyo.Var(model.J, model.J,  initialize=1.0)
-model.yThe = pyo.Var(model.J, model.J,  initialize=1.0)
+model.yIm = pyo.Var(model.J, model.J, initialize=1.0)
+model.yMag = pyo.Var(model.J, model.J, initialize=1.0)
+model.yThe = pyo.Var(model.J, model.J, initialize=1.0)
 
 model.ql = pyo.Var(model.J, initialize=0, within=pyo.NonNegativeReals)
 model.pl = pyo.Var(model.J, initialize=0, within=pyo.NonNegativeReals)
@@ -69,24 +69,31 @@ def ax_constraint_rule5(m, i):
     if i == 1:
         return m.pg[i] == (1 / m.mp[i]) * (m.w0 - m.w)
     else:
-        m.pg[i] == 0
+        return m.pg[i] == 0
 
 
 def ax_constraint_rule6(m, i):
     if i == 1:
         return m.qg[i] == (1 / m.nq[i]) * (m.V0 - m.v[i])
     else:
-        m.pg[i] == 0
+        return m.qg[i] == 0
 
 
 # Frequency & voltage dependent load constraints
-def ax_constraint_rule5(m, i):
+def ax_constraint_rule7(m, i):
     return m.pl[i] == m.p0[i] * pow(m.v[i] / m.V0, m.alpha) * (1 + m.KPF * (m.w - m.w0))
 
 
-def ax_constraint_rule6(m, i):
+def ax_constraint_rule8(m, i):
     return m.ql[i] == m.q0[i] * pow(m.v[i] / m.V0, m.beta) * (1 + m.KQF * (m.w - m.w0))
 
+
+def ax_constraint_rule9(m, i):
+    return m.d[i] <= math.pi/2
+
+
+def ax_constraint_rule10(m, i):
+    return m.d[i] >= -math.pi/2
 
 def admittanceReal(m, i, j):
     if i != j:
@@ -134,10 +141,30 @@ def admittanceThe(m, i, j):
     return m.yThe[i, j] == pyo.atan(m.yIm[i, j] / m.yReal[i, j])
 
 
+def maxGenCons(m, i):
+    if i == 1:
+        return pyo.sqrt(pow(m.pg[i], 2) + pow(m.qg[i], 2)) <= 1
+    else:
+        return pyo.Constraint.Skip
+
+
+def maxwCons(m):
+    return m.w <= 1.005
+
+
+def minwCons(m):
+    return m.w >= 0.995
+
+
 model.cons3 = pyo.Constraint(model.B, rule=ax_constraint_rule3)
 model.cons4 = pyo.Constraint(model.B, rule=ax_constraint_rule4)
 model.cons5 = pyo.Constraint(model.J, rule=ax_constraint_rule5)
 model.cons6 = pyo.Constraint(model.J, rule=ax_constraint_rule6)
+model.cons7 = pyo.Constraint(model.J, rule=ax_constraint_rule7)
+model.cons8 = pyo.Constraint(model.J, rule=ax_constraint_rule8)
+model.cons9 = pyo.Constraint(model.J, rule=ax_constraint_rule9)
+model.cons10 = pyo.Constraint(model.J, rule=ax_constraint_rule10)
+
 model.cons13 = pyo.Constraint(model.J, model.J, rule=admittanceReal)
 model.cons14 = pyo.Constraint(model.J, model.J, rule=admittanceIm)
 model.cons15 = pyo.Constraint(model.J, model.J, rule=admittanceDiagReal)
@@ -145,6 +172,9 @@ model.cons16 = pyo.Constraint(model.J, model.J, rule=admittanceDiagIm)
 model.cons17 = pyo.Constraint(model.J, model.J, rule=admittanceMag)
 model.cons18 = pyo.Constraint(model.J, model.J, rule=admittanceDiagMag)
 model.cons19 = pyo.Constraint(model.J, model.J, rule=admittanceThe)
+model.cons20 = pyo.Constraint(model.J, rule=maxGenCons)
+model.cons21 = pyo.Constraint(rule=maxwCons)
+model.cons22 = pyo.Constraint(rule=minwCons)
 
 model.name = "DroopControlledIMG"
 opt = pyo.SolverFactory("ipopt")
@@ -174,3 +204,8 @@ for parmobject in instance.component_objects(pyo.Var, active=True):
     for index in parmobject:
         vtoprint = pyo.value(parmobject[index])
         print("   ", index, vtoprint)
+
+(pyo.value(instance.V0) - pyo.value(instance.v[1])) * (1 / pyo.value(instance.nq[1]))
+
+pyo.value((1 / instance.nq[1]) * (instance.V0 - instance.v[1]))
+pyo.value(instance.qg[1])
