@@ -87,7 +87,6 @@ solver.solve(model, tee=True)
 
 #%%
 
-
 def square_digits(num):
     list = []
     num = str(num)
