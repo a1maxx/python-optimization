@@ -95,6 +95,7 @@ def ax_constraint_rule9(m, i):
 def ax_constraint_rule10(m, i):
     return m.d[i] >= -math.pi/2
 
+
 def admittanceReal(m, i, j):
     if i != j:
         return m.yReal[i, j] == m.R[i, j] / (pow(m.R[i, j], 2) + pow((m.X[i, j] * m.w), 2))
