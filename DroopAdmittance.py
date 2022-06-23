@@ -77,8 +77,8 @@ model.cons15 = pyo.Constraint(model.J, model.J, rule=admittance_rule3)
 
 model.name = "DroopControlledIMG"
 opt = pyo.SolverFactory("ipopt")
-# instance = model.create_instance(filename=("C:\\Users\\Administrator\\Py Files\\model.dat"))
-instance = model.create_instance(filename="/Users/my_mac/PycharmProjects/python-optimization/model2.dat")
+instance = model.create_instance(filename=("model2.dat"))
+# instance = model.create_instance(filename="/Users/my_mac/PycharmProjects/python-optimization/model2.dat")
 instance.pprint()
 
 opt.options['max_iter'] = 50000

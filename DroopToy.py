@@ -125,10 +125,11 @@ model.name = "DroopControlledIMG"
 opt = pyo.SolverFactory("ipopt")
 # instance = model.create_instance(filename=("C:\\Users\\Administrator\\Py Files\\model.dat"))
 instance = model.create_instance(filename="model2.dat")
-opt.options['max_iter'] = 50000
-opt.options['ma27_pivtol'] = 1e-2
+# opt.options['max_iter'] = 50000
+# opt.options['ma27_pivtol'] = 1e-2
 results = opt.solve(instance, tee=True)
 
+#%%
 instance.display()
 instance.pprint()
 

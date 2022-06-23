@@ -1,4 +1,4 @@
 # python-optimization
 Python codes that optimize things
 
-# work in progresss
+# Work in progress

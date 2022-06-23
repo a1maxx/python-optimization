@@ -11,19 +11,19 @@ model.b = pyo.Param(initialize=10)
 
 
 def obj_func(m):
-    return pyo.sin(m.x1 * m.x2)
+    return m.x1 * m.x2
 
 
 model.o = pyo.Objective(rule=obj_func, sense=pyo.minimize)
 
 
 def constraint1(m):
-    return m.x1 + m.x2 >= m.x1 * m.x2 * pyo.atan(m.x1/m.x2)
+    return m.x1 + m.x2 >= m.x1 * m.x2 * pyo.sqrt(m.x1/m.x2)
 
 
 model.cons1 = pyo.Constraint(rule=constraint1)
 
-opt = pyo.SolverFactory("couenne")
+opt = pyo.SolverFactory("scip")
 # opt.options['max_iter'] = 50000
 # opt.options['ma27_pivtol'] = 1e-10
 results = opt.solve(model, tee=True)

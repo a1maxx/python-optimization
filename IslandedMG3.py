@@ -31,39 +31,37 @@ df = pd.read_excel(filename, sheet_name="Sheet2")
 d = dict()
 
 for i in df.index:
-    d[int(df.loc[i].iat[0]), int(df.loc[i].iat[1])] = round(df.loc[i].iat[2], 2)
+    d[int(df.loc[i].iat[0]), int(df.loc[i].iat[1])] = -round(df.loc[i].iat[2], 2)
+
+a = dict()
 
 for i in range(1, 7):
     target = 0
     for v in d.keys():
         if i == v[0]:
             target += d[i, int(v[1])]
-            print("{0:2f} >.... {1:2.2f}".format(target, i))
+        a[i, i] = -target
 
-for v in d.keys():
-    print(v[1])
-
-for i in range(1, 7):
-    target = 0
-    for key, v in d.items():
-        if i in key:
-            target += -v
-    d[i, i] = target
+d.update(a)
 
 model.G = pyo.Param(model.line, initialize=d, default=0)
 
 d2 = dict()
 for i in df.index:
-    d2[df.loc[i].iat[0], df.loc[i].iat[1]] = df.loc[i].iat[4]
+    d2[int(df.loc[i].iat[0]), int(df.loc[i].iat[1])] = -round(df.loc[i].iat[4], 2)
 
-# for i in range(1, 7):
-#     target = 0
-#     for key, v in d2.items():
-#         if i in key:
-#             target += -v
-#     d2[i, i] = target
+a = dict()
 
-del i
+for i in range(1, 7):
+    target = 0
+    for v in d2.keys():
+        if i == v[0]:
+            target += d2[i, int(v[1])]
+        a[i, i] = -target
+
+d2.update(a)
+
+del a, i
 
 model.B = pyo.Param(model.line, initialize=d2, default=0)
 
@@ -95,18 +93,19 @@ data.load(filename=filename, range='priset', param="PRI")
 
 # Decision variables
 # Voltage magnitude of the node at time t
-model.v = pyo.Var(model.A, model.T, within=pyo.NonNegativeReals, initialize=1, bounds=(0, 1.5))
+model.v = pyo.Var(model.A, model.T, within=pyo.NonNegativeReals, initialize=1, bounds=(0.5, 1.5))
 
 # Phase difference between Vit and Vjt it can also be model.line instead of two model.A
-model.theta = pyo.Var(model.line, model.T, initialize=-1, bounds=(-math.pi / 2, math.pi / 2))
+# model.theta = pyo.Var(model.line, model.T, initialize=-1, bounds=(-math.pi / 2, math.pi / 2))
+model.theta = pyo.Var(model.line, model.T, initialize=0)
 
 # Active/Reactive power flow at time t
-model.p = pyo.Var(model.line, model.T, initialize=0, bounds=(0, 1.5))
-model.q = pyo.Var(model.line, model.T, initialize=0, bounds=(0, 1.5))
+model.p = pyo.Var(model.line, model.T, initialize=0, within=pyo.NonNegativeReals)
+model.q = pyo.Var(model.line, model.T, initialize=0, within=pyo.NonNegativeReals)
 
 # Active/Reactive power generation
-model.pg = pyo.Var(model.A, model.T, within=pyo.NonNegativeReals, initialize=0, bounds=(0, 1.5))
-model.qg = pyo.Var(model.A, model.T, within=pyo.NonNegativeReals, initialize=0, bounds=(0, 1.5))
+model.pg = pyo.Var(model.A, model.T, within=pyo.NonNegativeReals, initialize=0)
+model.qg = pyo.Var(model.A, model.T, within=pyo.NonNegativeReals, initialize=0)
 
 # Active power output of the energy storage at time t
 # model.pe = pyo.Var(model.A, model.T)
@@ -124,11 +123,14 @@ model.x = pyo.Var(model.line, within=pyo.Binary, initialize=1)
 model.y = pyo.Var(model.A, model.T, within=pyo.Binary, initialize=1)
 
 
+# def obj_expression(m):
+#     return sum(sum(abs(m.v[k, t] - m.VN) + sum(m.x[k, j] for j in m.A if (k, j) in m.line)
+#                    + m.PRI[k] * m.PD[k, t] *
+#                    (1 - m.y[k, t])
+#                    for k in m.A) for t in m.T)
+
 def obj_expression(m):
-    return sum(sum(abs(m.v[k, t] - m.VN) + sum(m.x[k, j] for j in m.A if (k, j) in m.line) + m.PRI[k] * m.PD[k, t] *
-                   (1 - m.y[k, t])
-                   for k in m.A)
-               for t in m.T)
+    return sum(sum(abs(m.v[k, t] - m.VN) + m.PRI[k] * m.PD[k, t] * (1 - m.y[k, t]) for k in m.A) for t in m.T)
 
 
 model.obj1 = pyo.Objective(rule=obj_expression, sense=pyo.minimize)
@@ -207,28 +209,49 @@ def constraint_rule42_3(m, k, t):
 
 model.cons42_3 = pyo.Constraint(model.A, model.T, rule=constraint_rule42_3)
 
-# def constraint_rule42(m, t):
-#     return sum((m.pg[k, t] + m.PR[k, t]) for k in m.A) >= sum(m.PD[k, t] for k in m.A)
-#
-#
-# model.cons42 = pyo.Constraint(model.T, rule=constraint_rule42)
+
+def constraint_rule42(m, t):
+    return sum((m.pg[k, t] + m.PR[k, t]) for k in m.A) >= sum(m.PD[k, t] for k in m.A)
 
 
-# def constraint_rule43(m, t):
-#     return sum((m.qg[k, t] + m.QR[k, t]) for k in m.A) >= sum(m.QD[k, t] for k in m.A)
-#
-#
-# model.cons43 = pyo.Constraint(model.T, rule=constraint_rule43)
+model.cons42 = pyo.Constraint(model.T, rule=constraint_rule42)
+
+
+def constraint_rule43(m, t):
+    return sum((m.qg[k, t] + m.QR[k, t]) for k in m.A) >= sum(m.QD[k, t] for k in m.A)
+
+
+model.cons43 = pyo.Constraint(model.T, rule=constraint_rule43)
 
 instance = model.create_instance(data)
 
-opt = pyo.SolverFactory("ipopt")
+opt = pyo.SolverFactory("couenne")
 instance.name = "DroopControlledIMG"
-opt.options['max_iter'] = 10000
+results = opt.solve(instance, tee=True)
+# # opt.options['acceptable_tol'] = 1e-3
+# # opt.options['tol'] = 1e-2
+# %%
+import os
 
-# opt.options['acceptable_tol'] = 1e-3
-# opt.options['tol'] = 1e-2
+os.environ["octeract_options"] = "num_cores=4"
+results = pyo.SolverFactory("octeract-engine").solve(instance, tee=True, keepfiles=False, load_solutions=False)
+print(results)
+model.solutions.load_from(results)
+# opt.options['max_iter'] = 10000
 # opt.options['ma27_pivtol'] = 1e-3
 
 
-results = opt.solve(instance, tee=True)
+# %%
+for varobject in instance.component_objects(pyo.Var, active=True):
+    nametoprint = str(str(varobject.name))
+    print("Variable ", nametoprint)
+    for index in varobject:
+        vtoprint = pyo.value(varobject[index])
+        print("   ", index, vtoprint)
+
+for parmobject in instance.component_objects(pyo.Param, active=True):
+    nametoprint = str(str(parmobject.name))
+    print("Parameter ", nametoprint)
+    for index in parmobject:
+        vtoprint = pyo.value(parmobject[index])
+        print("   ", index, vtoprint)
