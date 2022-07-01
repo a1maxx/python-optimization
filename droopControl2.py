@@ -41,13 +41,15 @@ model.alpha = pyo.Param(initialize=1)
 model.beta = pyo.Param(initialize=1)
 
 model.J = pyo.RangeSet(0, model.N - 1)
-model.genSet = pyo.Set(initialize={0, 4, 3})
+model.drgenSet = pyo.Set(initialize={0, 4, 3})
+model.digenSet = pyo.Set(initialize={1})
+
 
 model.p0 = pyo.Param(model.J, initialize={0: 0, 1: 0.20, 2: 0.05, 3: 0.10, 4: 0.00, 5: 0.10})
 model.q0 = pyo.Param(model.J, initialize={0: 0, 1: 0.12, 2: 0.48, 3: 0.04, 4: 0.00, 5: 0.06})
 model.w0 = pyo.Param(initialize=1.0)
 model.V0 = pyo.Param(initialize=1.01)
-model.SGmax = pyo.Param(model.genSet, initialize=1.0)
+model.SGmax = pyo.Param(model.drgenSet, initialize=1.0)
 model.yMag = pyo.Param(model.J, model.J, initialize=dict_mag)
 model.yThe = pyo.Param(model.J, model.J, initialize=dict_the)
 
@@ -59,10 +61,11 @@ model.qg = pyo.Var(model.J, initialize=0, within=pyo.NonNegativeReals, bounds=(0
 model.v = pyo.Var(model.J, domain=pyo.NonNegativeReals, initialize=1.0, bounds=(0.5, 1.5))
 model.d = pyo.Var(model.J, domain=pyo.Reals, initialize=1.0, bounds=(-math.pi / 2, math.pi / 2))
 
-model.mp = pyo.Var(model.genSet, domain=pyo.NonNegativeReals, initialize=0.03, bounds=(0, 1))
-model.nq = pyo.Var(model.genSet, domain=pyo.NonNegativeReals, initialize=0.01, bounds=(0, 1))
+model.mp = pyo.Var(model.drgenSet, domain=pyo.NonNegativeReals, initialize=0.03, bounds=(0, 1))
+model.nq = pyo.Var(model.drgenSet, domain=pyo.NonNegativeReals, initialize=0.01, bounds=(0, 1))
 
 model.w = pyo.Var(domain=pyo.NonNegativeReals, initialize=1)
+
 
 def obj_expression(m):
     return sum(pow((m.v[i] - 1.0), 2) for i in m.J)
@@ -72,41 +75,29 @@ model.o = pyo.Objective(rule=obj_expression, sense=pyo.minimize)
 
 
 def ax_constraint_rule3(m, i):
-    # # return the expression for the constraint for i
     return (m.pg[i] - m.pl[i]) - sum(
         m.v[i] * m.v[j] * m.yMag[i, j] * pyo.cos(m.yThe[i, j] + m.d[j] - m.d[i]) for j in m.J) == 0
 
-    # Approximated version - cosine
-    # return (m.pg[i] - m.pl[i]) - \
-    #        sum(m.v[i] * m.v[j] * m.yMag[i, j] * (1 - pow((m.yThe[i, j] + m.d[j] - m.d[i]), 2) / 2) for j in
-    #            m.J if (m.R[i, j] != 0 or i == j)) == 0
-
 
 def ax_constraint_rule4(m, i):
-    # return the expression for the constraint for i
-
     return (m.qg[i] - m.ql[i]) + sum(
         m.v[i] * m.v[j] * m.yMag[i, j] * pyo.sin(m.yThe[i, j] + m.d[j] - m.d[i]) for j in m.J) == 0
 
-    # Approximated version - sine
-    # return (m.qg[i] - m.ql[i]) + sum(
-    #     m.v[i] * m.v[j] * m.yMag[i, j] * (16 * (m.yThe[i, j] + m.d[j] - m.d[i]) *
-    #                                       (math.pi - (m.yThe[i, j] + m.d[j] - m.d[i]))) / (
-    #             5 * pow(math.pi, 2) - 4 * (m.yThe[i, j] + m.d[j] - m.d[i]) *
-    #             (math.pi - (m.yThe[i, j] + m.d[j] - m.d[i])))
-    #     for j in m.J if (m.R[i, j] != 0 or i == j)) == 0
-
 
 def ax_constraint_rule5(m, i):
-    if i in m.genSet:
+    if i in m.drgenSet:
         return m.pg[i] == (1 / m.mp[i]) * (m.w0 - m.w)
+    elif i in m.digenSet:
+        return m.pg[i] <= 0.1
     else:
         return m.pg[i] == 0
 
 
 def ax_constraint_rule6(m, i):
-    if i in m.genSet:
+    if i in m.drgenSet:
         return m.qg[i] == (1 / m.nq[i]) * (m.V0 - m.v[i])
+    elif i in m.digenSet:
+        return m.qg[i] <= 0.06
     else:
         return m.qg[i] == 0
 
@@ -121,7 +112,7 @@ def ax_constraint_rule8(m, i):
 
 
 def maxGenCons(m, i):
-    if i in m.genSet:
+    if i in m.drgenSet:
         return pyo.sqrt(pow(m.pg[i], 2) + pow(m.qg[i], 2)) <= 1
     else:
         return pyo.Constraint.Skip
@@ -132,7 +123,7 @@ def maxwCons(m):
 
 
 def minwCons(m):
-    return m.w >= 0.997
+    return m.w >= 0.995
 
 
 model.cons3 = pyo.Constraint(model.J, rule=ax_constraint_rule3)
@@ -147,7 +138,7 @@ model.cons22 = pyo.Constraint(rule=minwCons)
 
 model.name = "DroopControlledIMG"
 opt = pyo.SolverFactory("ipopt")
-# opt.options['acceptable_tol'] = 1e-3
+opt.options['acceptable_tol'] = 1e-3
 # instance.pprint()
 opt.options['max_iter'] = 100000000
 
