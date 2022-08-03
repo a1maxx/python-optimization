@@ -256,7 +256,7 @@ model.cons25 = pyo.Constraint(model.drgenSet, rule=dummyCons)
 model.cons26 = pyo.Constraint(model.drgenSet, rule=dummyCons2)
 
 model.name = "DroopControlledIMG"
-opt = pyo.SolverFactory("ipopt")
+opt = pyo.SolverFactory("scip")
 # opt.options['acceptable_tol'] = 1e-3
 # instance.pprint()
 opt.options['max_iter'] = 100000000
@@ -307,3 +307,175 @@ nqa
 
 # pLoss = model.yMag[i,j] * model.v[s,i] *model.v[s,j]
 # qLoss = -1/2 * (model.yThe[i,j] - model.d[s,i] * 2)
+
+# %%
+
+from pyomo.environ import ConcreteModel, minimize, SolverFactory, Set, \
+    Param, Var, Constraint, Objective, \
+    TransformationFactory
+from pyomo.gdp import Disjunction
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+import numpy as np
+
+model = ConcreteModel()
+
+
+edges = {(1, 2): {'band': 2},
+         (1, 3): {'band': 2},
+         (2, 4): {'band': 1},
+         (3, 5): {'band': 2},
+         (4, 6): {'band': 4},
+         (5, 6): {'band': 2}
+         }
+
+bc = {(1, 2): {'uc': 2},
+      (1, 3): {'uc': 2},
+      (2, 4): {'uc': 1},
+      (3, 5): {'uc': 2},
+      (4, 6): {'uc': 4},
+      (5, 6): {'uc': 2}
+      }
+
+qos = {1: {'lat': 10},
+       2: {'lat': 5},
+       3: {'lat': 4}
+       }
+
+demand = {(1, 2): {'q': 2, 'size': 100},
+          (2, 4): {'q': 1, 'size': 20},
+          (4, 6): {'q': 3, 'size': 50}
+          }
+
+
+model.D = pyo.Param(demand.keys(), initialize=demand)
+model.E = Set(edges.keys(), initialize=edges)
+model.dur = Param(model.TASKS, initialize=lambda model, j, m: TASKS[(j, m)]['dur'])
+model.C = pyo.Param(edges,initialize = lambda model,i,j: )
+
+model.b = Var(edges,within=pyo.Binary)
+model.x = Var(edges,within=pyo.NonNegativeReals)
+model.tx = Var(demand)
+
+
+model.obj1 = Objective()
+
+def objective(m):
+    return sum( (i,j) in edges m.x)
+
+
+def constraint1(m, i, j):
+    return model.D[i, j]['size'] / model.x[i, j] == model.tx
+
+
+
+
+
+from pyomo.environ import maximize, NonNegativeReals
+import matplotlib.pyplot as plt
+
+
+# max f1 = X1 <br>
+# max f2 = 3 X1 + 4 X2 <br>
+# st  X1 <= 20 <br>
+#     X2 <= 40 <br>
+#     5 X1 + 4 X2 <= 200 <br>
+
+model = ConcreteModel()
+
+model.X1 = Var(within=NonNegativeReals)
+model.X2 = Var(within=NonNegativeReals)
+
+model.C1 = Constraint(expr = model.X1 <= 20)
+model.C2 = Constraint(expr = model.X2 <= 40)
+model.C3 = Constraint(expr = 5 * model.X1 + 4 * model.X2 <= 200)
+
+model.f1 = Var()
+model.f2 = Var()
+model.C_f1 = Constraint(expr= model.f1 == model.X1)
+model.C_f2 = Constraint(expr= model.f2 == 3 * model.X1 + 4 * model.X2)
+model.O_f1 = Objective(expr= model.f1  , sense=maximize)
+model.O_f2 = Objective(expr= model.f2  , sense=maximize)
+
+model.O_f2.deactivate()
+
+solver = SolverFactory('cplex')
+solver.solve(model)
+
+print( '( X1 , X2 ) = ( ' + str(value(model.X1)) + ' , ' + str(value(model.X2)) + ' )')
+print( 'f1 = ' + str(value(model.f1)) )
+print( 'f2 = ' + str(value(model.f2)) )
+f2_min = value(model.f2)
+
+
+# ## max f2
+
+model.O_f2.activate()
+model.O_f1.deactivate()
+
+solver = SolverFactory('cplex')
+solver.solve(model)
+
+print( '( X1 , X2 ) = ( ' + str(value(model.X1)) + ' , ' + str(value(model.X2)) + ' )')
+print( 'f1 = ' + str(value(model.f1)) )
+print( 'f2 = ' + str(value(model.f2)) )
+f2_max = value(model.f2)
+
+
+# ## apply normal $\epsilon$-Constraint
+
+model.O_f1.activate()
+model.O_f2.deactivate()
+
+model.e = Param(initialize=0, mutable=True)
+
+model.C_epsilon = Constraint(expr = model.f2 == model.e)
+
+solver.solve(model);
+
+print('Each iteration will keep f2 lower than some values between f2_min and f2_max, so ['       + str(f2_min) + ', ' + str(f2_max) + ']')
+
+n = 4
+step = int((f2_max - f2_min) / n)
+steps = list(range(int(f2_min),int(f2_max),step)) + [f2_max]
+
+x1_l = []
+x2_l = []
+for i in steps:
+    model.e = i
+    solver.solve(model)
+    x1_l.append(value(model.X1))
+    x2_l.append(value(model.X2))
+plt.plot(x1_l,x2_l,'o-.')
+plt.title('inefficient Pareto-front')
+plt.grid(True)
+plt.show()
+
+# ## apply augmented $\epsilon$-Constraint
+
+# max   f2 + delta*epsilon <br>
+#  s.t. f2 - s = e
+
+model.del_component(model.O_f1)
+model.del_component(model.O_f2)
+model.del_component(model.C_epsilon)
+
+model.delta = Param(initialize=0.00001)
+
+model.s = Var(within=NonNegativeReals)
+
+model.O_f1 = Objective(expr = model.f1 + model.delta * model.s, sense=maximize)
+
+model.C_e = Constraint(expr = model.f2 - model.s == model.e)
+
+x1_l = []
+x2_l = []
+for i in range(160,190,6):
+    model.e = i
+    solver.solve(model)
+    x1_l.append(value(model.X1))
+    x2_l.append(value(model.X2))
+plt.plot(x1_l, x2_l,'o-.')
+plt.title('efficient Pareto-front')
+plt.grid(True)

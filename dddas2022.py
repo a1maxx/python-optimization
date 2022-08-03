@@ -2,10 +2,13 @@ import pandas as pd
 import cmath
 import pyomo.environ as pyo
 import math
+from pyomo.opt import TerminationCondition, SolverStatus
 from pyomo.util.infeasible import log_infeasible_constraints
 import logging
 from pyomo.environ import value, NonNegativeReals
 import numpy as np
+
+import Scheduling2
 
 dfR = pd.read_csv('datFiles/dat30R.csv', header=None, sep='\t')
 dfX = pd.read_csv('datFiles/dat30X.csv', header=None, sep='\t')
@@ -47,6 +50,8 @@ model.drgenSet = pyo.Set(initialize={0, 1, 12, 21, 22, 26})
 model.digenSet = pyo.Set(initialize={})
 model.S = pyo.Set(initialize={0, 1, 2, 3, 4, 5})
 model.renGen = pyo.Set(initialize={5, 9, 28})
+edge_servers = set(sorted([2, 10, 11]))
+model.edSer = pyo.Set(initialize=edge_servers)
 
 red_scenes = np.array([[0.0142871, 0.01661571, 0.0151843, 0.01447392, 0.01459851,
                         0.01648786, 0.01444571, 0.01712976, 0.01375529, 0.01401984,
@@ -79,7 +84,6 @@ red_scenes = np.array([[0.0142871, 0.01661571, 0.0151843, 0.01447392, 0.01459851
                         0.01428264, 0.01534556, 0.01522338, 0.01507315, 0.01755332,
                         0.01547741, 0., 0., 0.00837387]])
 
-
 red_probs = np.array([0.3866797485561724,
                       0.14159303981175864,
                       0.17084273795134894,
@@ -107,16 +111,42 @@ for i in model.J:
             qrenGen[s, i] = red_scenes[s, i] * 0.6
         red_scenes[:, i] = np.zeros(nScenarios)
 
+# red_scenesPE = red_scenes[:, edge_servers]
+
 d1 = {}
 for i in range(0, 6):
     for j in range(0, 30):
-        d1[i, j] = red_scenes[i, j]
+        d1[i, j] = red_scenes[i, j] + (j in model.edSer) * 0
 
 PF = 0.6
 d2 = {}
 for k, v in d1.items():
     d2[k] = v * PF
 
+d3 = {}
+j = 0
+
+for i in model.edSer:
+    d3[i] = withCon[j] * 1.5
+    j += 1
+
+d4 = {}
+for k, v in d3.items():
+    d4[k] = v * PF
+
+# PRID = np.random.poisson(2, 30).copy()
+# PRID[np.argwhere(PRID == 0)] = 1
+# PRIS = np.random.poisson(4, 3).copy()
+# PRIS[np.argwhere(PRIS == 0)] = 1
+
+d5 = {}
+for k in zip(model.edSer, PRIS):
+    d5[k[0]] = k[1]
+
+model.DPRI = pyo.Param(model.J, initialize=PRID)
+model.SPRI = pyo.Param(model.edSer, initialize=d5)
+model.EP = pyo.Param(model.edSer, initialize=d3)
+model.EQ = pyo.Param(model.edSer, initialize=d4)
 model.SPROBS = pyo.Param(model.S, initialize=red_probs)
 model.p0 = pyo.Param(model.S * model.J, initialize=d1)
 model.q0 = pyo.Param(model.S * model.J, initialize=d2)
@@ -136,33 +166,38 @@ model.SGmax = pyo.Param(model.drgenSet, initialize={0: 0.05, 1: 0.06, 12: 0.05, 
 model.yMag = pyo.Param(model.J, model.J, initialize=dict_mag)
 model.yThe = pyo.Param(model.J, model.J, initialize=dict_the)
 
-model.ql = pyo.Var(model.S * model.J, initialize=0, within=NonNegativeReals, bounds=(0, 2))
+model.ql = pyo.Var(model.S * model.J, initialize=0, within=pyo.NonNegativeReals, bounds=(0, 2))
 model.pl = pyo.Var(model.S * model.J, initialize=0, within=pyo.NonNegativeReals, bounds=(0, 2))
 model.pg = pyo.Var(model.S * model.J, initialize=0, within=pyo.NonNegativeReals, bounds=(0, 2))
 model.qg = pyo.Var(model.S * model.J, initialize=0, within=pyo.NonNegativeReals, bounds=(0, 2))
 
-model.v = pyo.Var(model.S * model.J, domain=pyo.NonNegativeReals, initialize=1.0, bounds=(0.9, 1.1))
+model.r = pyo.Var(model.edSer, initialize=0, within=pyo.Binary)
+model.c = pyo.Var(model.J, initialize=1, within=pyo.Binary)
+
+model.v = pyo.Var(model.S * model.J, domain=pyo.NonNegativeReals, initialize=1.0, bounds=(0.95, 1.05))
 model.d = pyo.Var(model.S * model.J, domain=pyo.Reals, initialize=1.0, bounds=(-math.pi / 2, math.pi / 2))
 
-model.mp = pyo.Var(model.drgenSet, domain=pyo.NonNegativeReals, initialize=0.03, bounds=(0, 1))
-model.nq = pyo.Var(model.drgenSet, domain=pyo.NonNegativeReals, initialize=0.01, bounds=(0, 1))
+model.mp = pyo.Var(model.drgenSet, domain=pyo.NonNegativeReals, initialize=0.03, bounds=(1e-10, 1))
+model.nq = pyo.Var(model.drgenSet, domain=pyo.NonNegativeReals, initialize=0.01, bounds=(1e-10, 1))
 
-model.w = pyo.Var(model.S, domain=pyo.NonNegativeReals, initialize=1, bounds=(0.990, 1.00))
+model.w = pyo.Var(model.S, domain=pyo.NonNegativeReals, initialize=1, bounds=(0.995, 1.005))
 
 
-def obj_expression(m):
-    return sum(model.SPROBS[s] * sum((model.yMag[i, j] * model.v[s, i] * model.v[s, j]) *
-                                     pyo.cos(model.yThe[i, j] + model.d[s, i] + model.d[s, j]) +
-                                     (-1 / 2) * (model.yMag[i, j] * model.v[s, i] * model.v[s, j]) * model.w[s] *
-                                     pyo.sin(model.yThe[i, j] + model.d[s, i] + model.d[s, j]) for j in m.J) for
-               s, i in m.S * m.J)
-
+# def obj_expression(m):
+#     return sum(model.SPROBS[s] * sum((model.yMag[i, j] * model.v[s, i] * model.v[s, j]) *
+#                                      pyo.cos(model.yThe[i, j] + model.d[s, i] + model.d[s, j]) +
+#                                      (-1 / 2) * (model.yMag[i, j] * model.v[s, i] * model.v[s, j]) * model.w[s] *
+#                                      pyo.sin(model.yThe[i, j] + model.d[s, i] + model.d[s, j]) for j in m.J) for
+#                s, i in m.S * m.J)
 
 # def obj_expression(m):
 #     return sum(model.SPROBS[s] * pow((m.v[s, i] - 1.0), 2) for s, i in m.S * m.J)
 
+def obj_expression(m):
+    return sum(model.r[i] * model.SPRI[i] for i in m.edSer) + sum(model.c[i] * model.DPRI[i] for i in model.J)
 
-model.o = pyo.Objective(rule=obj_expression, sense=pyo.minimize)
+
+model.o = pyo.Objective(rule=obj_expression, sense=pyo.maximize)
 
 
 def ax_constraint_rule3(m, s, i):
@@ -207,26 +242,32 @@ def ax_constraint_rule6(m, s, i):
 
 # Frequency & voltage dependent load constraints
 def ax_constraint_rule7(m, s, i):
-    return m.pl[s, i] == m.p0[s, i] * pow(m.v[s, i] / m.V0, m.alpha) * (1 + m.KPF * (m.w[s] - m.w0))
+    if i not in model.edSer:
+        return m.pl[s, i] == m.c[i] * m.p0[s, i] * pow(m.v[s, i] / m.V0, m.alpha) * (1 + m.KPF * (m.w[s] - m.w0))
+    else:
+        return m.pl[s, i] == ((model.r[i] * model.EP[i]) + m.p0[s, i]) * pow(m.v[s, i] / m.V0, m.alpha) * (
+                1 + m.KPF * (m.w[s] - m.w0))
 
 
 def ax_constraint_rule8(m, s, i):
-    return m.ql[s, i] == m.q0[s, i] * pow(m.v[s, i] / m.V0, m.beta) * (1 + m.KQF * (m.w[s] - m.w0))
+    if i not in model.edSer:
+        return m.ql[s, i] == m.c[i] * m.q0[s, i] * pow(m.v[s, i] / m.V0, m.beta) * (1 + m.KQF * (m.w[s] - m.w0))
+    else:
+        return m.ql[s, i] == ((model.r[i] * model.EQ[i]) + m.q0[s, i]) * pow(m.v[s, i] / m.V0, m.beta) * (
+                1 + m.KQF * (m.w[s] - m.w0))
 
+
+# def maxGenCons(m, s, i):
+#     if i in m.drgenSet:
+#         return pyo.sqrt(pow(m.pg[s, i], 2) + pow(m.qg[s, i], 2)) <= model.SGmax[i]
+#     else:
+#         return pyo.Constraint.Skip
 
 def maxGenCons(m, s, i):
     if i in m.drgenSet:
-        return pyo.sqrt(pow(m.pg[s, i], 2) + pow(m.qg[s, i], 2)) <= model.SGmax[i]
+        return pow(m.pg[s, i], 2) + pow(m.qg[s, i], 2) <= pow(model.SGmax[i], 2)
     else:
         return pyo.Constraint.Skip
-
-
-def dummyCons(m, i):
-    return abs(m.mp[i]) >= 0.001
-
-
-def dummyCons2(m, i):
-    return abs(m.nq[i]) >= 0.001
 
 
 model.cons3 = pyo.Constraint(model.S * model.J, rule=ax_constraint_rule3)
@@ -236,35 +277,46 @@ model.cons6 = pyo.Constraint(model.S * model.J, rule=ax_constraint_rule6)
 model.cons7 = pyo.Constraint(model.S * model.J, rule=ax_constraint_rule7)
 model.cons8 = pyo.Constraint(model.S * model.J, rule=ax_constraint_rule8)
 model.cons20 = pyo.Constraint(model.S * model.J, rule=maxGenCons)
-model.cons25 = pyo.Constraint(model.drgenSet, rule=dummyCons)
-model.cons26 = pyo.Constraint(model.drgenSet, rule=dummyCons2)
+
 
 model.name = "DroopControlledIMG"
-opt = pyo.SolverFactory("ipopt")
+# opt = pyo.SolverFactory("ipopt")
+# opt = pyo.SolverFactory('bonmin', executable="C:\\msys64\\home\\Administrator\\bonmin.exe")
+opt = pyo.SolverFactory('coeunne', executable="C:\\msys64\\home\\Administrator\\couenne.exe")
 # opt.options['acceptable_tol'] = 1e-3
 # instance.pprint()
-opt.options['max_iter'] = 100000000
+# opt.options['max_iter'] = 100000000
 
-log_infeasible_constraints(model, log_expression=True, log_variables=True)
-logging.basicConfig(filename='example2.log', level=logging.INFO)
+# log_infeasible_constraints(model, log_expression=True, log_variables=True)
+# logging.basicConfig(filename='example2.log', level=logging.INFO)
 
 results = opt.solve(model, tee=True)
 
 # %%
 
+# results.solver.termination_condition == TerminationCondition.optimal
+# results.solver.status == SolverStatus.ok
+
+for i in model.r:
+    print(" ", i, value(model.r[i]))
+
+for i in model.c:
+    print(" ", i, value(model.c[i]))
+
+for parmobject in model.component_objects(pyo.Var, active=True):
+    nametoprint = str(str(parmobject.name))
+    print("Variable ", nametoprint)
+    for index in parmobject:
+        vtoprint = pyo.value(parmobject[index])
+        print("   ", index, vtoprint)
+
+# %%
 model.display()
 model.pprint()
 model
 for parmobject in model.component_objects(pyo.Param, active=True):
     nametoprint = str(str(parmobject.name))
     print("Parameter ", nametoprint)
-    for index in parmobject:
-        vtoprint = pyo.value(parmobject[index])
-        print("   ", index, vtoprint)
-
-for parmobject in model.component_objects(pyo.Var, active=True):
-    nametoprint = str(str(parmobject.name))
-    print("Variable ", nametoprint)
     for index in parmobject:
         vtoprint = pyo.value(parmobject[index])
         print("   ", index, vtoprint)
@@ -296,7 +348,6 @@ for i in minuses:
     pos2[i] = -pos[i]
 
 pos2
-
 
 mpso = [1.589029, 0.034308, 1.138078, 0.919444, 0.050840, 1.144344]
 sum(mpso)

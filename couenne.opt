@@ -312,7 +312,7 @@ log_num_local_optimization_per_level 2
 # A solution is feasible for the original problem if the maximum
 # violation of a constraint is below this number
 
-feas_tolerance 1e-3
+feas_tolerance 1e-8
 
 
 # Use quadratic expressions and related exprQuad class
