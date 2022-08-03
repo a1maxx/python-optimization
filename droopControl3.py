@@ -352,7 +352,7 @@ demand = {(1, 2): {'q': 2, 'size': 100},
 model.D = pyo.Param(demand.keys(), initialize=demand)
 model.E = Set(edges.keys(), initialize=edges)
 model.dur = Param(model.TASKS, initialize=lambda model, j, m: TASKS[(j, m)]['dur'])
-model.C = pyo.Param(edges,initialize = lambda model,i,j: )
+
 
 model.b = Var(edges,within=pyo.Binary)
 model.x = Var(edges,within=pyo.NonNegativeReals)
