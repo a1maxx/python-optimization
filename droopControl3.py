@@ -361,8 +361,6 @@ model.tx = Var(demand)
 
 model.obj1 = Objective()
 
-def objective(m):
-    return sum( (i,j) in edges m.x)
 
 
 def constraint1(m, i, j):
