@@ -43,20 +43,20 @@ def microgrid_model(dfR, dfX, red_scenes, red_probs, withCon, PRID, PRIS):
 
     model = ConcreteModel()
     model.N = pyo.Param(default=int(math.sqrt(len(dict_mag))))
+    model.Z = Param(initialize=24)
     model.KPF = pyo.Param(initialize=1)
     model.KQF = pyo.Param(initialize=-1)
     model.alpha = pyo.Param(initialize=1)
     model.beta = pyo.Param(initialize=1)
 
     model.J = pyo.RangeSet(0, value(model.N) - 1)
+    model.T = pyo.RangeSet(0, value(model.Z))
     model.drgenSet = pyo.Set(initialize={0, 1, 12, 21, 22, 26})
     model.digenSet = pyo.Set(initialize={})
     model.S = pyo.Set(initialize={0, 1, 2, 3, 4, 5})
     model.renGen = pyo.Set(initialize={5, 9, 28})
     edge_servers = set(sorted([2, 10, 11]))
     model.edSer = pyo.Set(initialize=edge_servers)
-
-
 
     nScenarios = len(red_scenes)
     a = np.zeros(nScenarios)
@@ -110,12 +110,12 @@ def microgrid_model(dfR, dfX, red_scenes, red_probs, withCon, PRID, PRIS):
     model.EP = pyo.Param(model.edSer, initialize=d3)
     model.EQ = pyo.Param(model.edSer, initialize=d4)
     model.SPROBS = pyo.Param(model.S, initialize=red_probs)
-    model.p0 = pyo.Param(model.S * model.J, initialize=d1)
-    model.q0 = pyo.Param(model.S * model.J, initialize=d2)
+    model.p0 = pyo.Param(model.S * model.J * model.T, initialize=d1)
+    model.q0 = pyo.Param(model.S * model.J * model.T, initialize=d2)
     d3, d4 = dict(), dict()
 
-    model.PR = pyo.Param(model.S * model.renGen, initialize=prenGen)
-    model.QR = pyo.Param(model.S * model.renGen, initialize=qrenGen)
+    model.PR = pyo.Param(model.S * model.renGen * model.T, initialize=prenGen)
+    model.QR = pyo.Param(model.S * model.renGen * model.T, initialize=qrenGen)
     model.w0 = pyo.Param(initialize=1.0)
     model.V0 = pyo.Param(initialize=1.01)
     model.SGmax = pyo.Param(model.drgenSet, initialize={0: 0.05, 1: 0.06, 12: 0.05, 21: 0.05, 22: 0.06, 26: 0.05})
@@ -123,10 +123,10 @@ def microgrid_model(dfR, dfX, red_scenes, red_probs, withCon, PRID, PRIS):
     model.yMag = pyo.Param(model.J, model.J, initialize=dict_mag)
     model.yThe = pyo.Param(model.J, model.J, initialize=dict_the)
 
-    model.ql = pyo.Var(model.S * model.J, initialize=0, within=pyo.NonNegativeReals, bounds=(0, 2))
-    model.pl = pyo.Var(model.S * model.J, initialize=0, within=pyo.NonNegativeReals, bounds=(0, 2))
-    model.pg = pyo.Var(model.S * model.J, initialize=0, within=pyo.NonNegativeReals, bounds=(0, 2))
-    model.qg = pyo.Var(model.S * model.J, initialize=0, within=pyo.NonNegativeReals, bounds=(0, 2))
+    model.ql = pyo.Var(model.S * model.J * model.T, initialize=0, within=pyo.NonNegativeReals, bounds=(0, 2))
+    model.pl = pyo.Var(model.S * model.J * model.T, initialize=0, within=pyo.NonNegativeReals, bounds=(0, 2))
+    model.pg = pyo.Var(model.S * model.J * model.T, initialize=0, within=pyo.NonNegativeReals, bounds=(0, 2))
+    model.qg = pyo.Var(model.S * model.J * model.T, initialize=0, within=pyo.NonNegativeReals, bounds=(0, 2))
 
     model.r = pyo.Var(model.edSer, initialize=0, within=pyo.Binary)
     model.c = pyo.Var(model.J, initialize=1, within=pyo.Binary)
@@ -220,28 +220,39 @@ def microgrid_model(dfR, dfX, red_scenes, red_probs, withCon, PRID, PRIS):
 
 
 def microgrid_solve(model):
-    return SolverFactory('bonmin').solve(model)
+    return SolverFactory('bonmin', executable="C:\\msys64\\home\\Administrator\\bonmin.exe").solve(model, tee=True)
 
 
 if __name__ == "__main__":
     with open('datFiles\\tasks.txt', 'rb') as handle:
         data = handle.read()
     TASKS = pickle.loads(data)
-    results = sch2.jobshop(TASKS)
-    schedule = pd.DataFrame(results)
-    withCon = sch2.getConsumption(schedule)
 
     dfR = pd.read_csv('datFiles/dat30R.csv', header=None, sep='\t')
     dfX = pd.read_csv('datFiles/dat30X.csv', header=None, sep='\t')
     red_scenes = np.loadtxt('datFiles\\red_scenes2.csv', delimiter=',')
     red_probs = np.loadtxt('datFiles\\red_probs2.csv', delimiter=',')
 
-
     PRID = np.random.poisson(2, 30).copy()
     PRID[np.argwhere(PRID == 0)] = 1
     PRIS = np.random.poisson(4, 3).copy()
     PRIS[np.argwhere(PRIS == 0)] = 1
-    modelM = microgrid_model(dfR, dfX, red_scenes,red_probs,withCon,PRID,PRIS)
-    microgrid_solve(modelM)
 
+    results = sch2.jobshop(TASKS)
+    schedule = pd.DataFrame(results)
+    withCon = sch2.getConsumption(schedule)
+    modelM = microgrid_model(dfR, dfX, red_scenes, red_probs, withCon.apply(lambda x: x ** -1), PRID, PRIS)
+    results = microgrid_solve(modelM)
 
+    for i in modelM.r:
+        print(" ", i, value(modelM.r[i]))
+
+    for i in modelM.c:
+        print(" ", i, value(modelM.c[i]))
+
+    for parmobject in modelM.component_objects(pyo.Var, active=True):
+        nametoprint = str(str(parmobject.name))
+        print("Variable ", nametoprint)
+        for index in parmobject:
+            vtoprint = pyo.value(parmobject[index])
+            print("   ", index, vtoprint)
