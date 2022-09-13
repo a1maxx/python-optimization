@@ -1,6 +1,10 @@
+
+#### Checking if it is working.
+from math import exp 
 import pyomo.environ as pyo
 from pyomo.environ import NonNegativeReals
 
+e = exp(1)
 model = pyo.AbstractModel()
 model.N = pyo.Param(default=6)
 model.KPF = pyo.Param(initialize=1)
