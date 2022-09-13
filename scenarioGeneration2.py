@@ -60,6 +60,8 @@ for i in range(0, len(darr)):
 
 # darr = np.column_stack((darr, probs / sum(probs)))
 
+
+
 darrwoScen = np.delete(darr, 0, 1)
 probabilities = probs / sum(probs)
 scenarios = darrwoScen.T

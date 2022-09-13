@@ -174,11 +174,11 @@ if __name__ == "__main__":
     results = jobshop(TASKS)
     schedule = pd.DataFrame(results)
     withCon = getConsumption(schedule)
-    mpl.rcParams['figure.dpi'] = 300
-    mpl.rcParams['savefig.dpi'] = 300
+    # mpl.rcParams['figure.dpi'] = 300
+    # mpl.rcParams['savefig.dpi'] = 300
     fig = visualize(results)
     fig.show()
-    fig.savefig('graph6.svg')
+    # fig.savefig('graph6.svg')
 
 
 
