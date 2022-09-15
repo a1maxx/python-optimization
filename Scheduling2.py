@@ -56,9 +56,10 @@ def jobshop_model(TASKS):
     model.disjunctions = Disjunction(model.DISJUNCTIONS, rule=lambda model, j, k, m:
     [model.start[j, m] + model.dur[j, m] <= model.start[k, m],
      model.start[k, m] + model.dur[k, m] <= model.start[j, m]])
-    #
-    model.dummy = Constraint(rule=lambda model: model.start['Task_D', 'Server_1'] == 15)
-    model.dummy2 = Constraint(rule=lambda model: model.start['Task_D2', 'Server_3'] == 4)
+
+    if ('Task_D' in TASKS.keys()):
+        model.dummy = Constraint(rule=lambda model: model.start['Task_D', 'Server_1'] == 15)
+        model.dummy2 = Constraint(rule=lambda model: model.start['Task_D2', 'Server_3'] == 4)
 
     TransformationFactory('gdp.hull').apply_to(model)
     return model
@@ -151,35 +152,50 @@ def visualize(results):
 
 if __name__ == "__main__":
     TASKS = {
-        ('Task_1', 'Server_1'): {'dur': 25, 'prec': None, 'pri': 2},
-        ('Task_1', 'Server_2'): {'dur': 10, 'prec': ('Task_1', 'Server_1'), 'pri': 2},
-        ('Task_2', 'Server_1'): {'dur': 10, 'prec': None, 'pri': 3},
-        ('Task_2', 'Server_2'): {'dur': 20, 'prec': ('Task_2', 'Server_1'), 'pri': 3},
-        ('Task_2', 'Server_3'): {'dur': 12, 'prec': ('Task_2', 'Server_2'), 'pri': 3},
-        ('Task_3', 'Server_2'): {'dur': 12, 'prec': ('Task_3', 'Server_3'), 'pri': 5},
-        ('Task_3', 'Server_3'): {'dur': 28, 'prec': None, 'pri': 5},
-        ('Task_3', 'Server_2'): {'dur': 12, 'prec': ('Task_3', 'Server_3'), 'pri': 5},
-        ("Task_4", "Server_1"): {'dur': 12, 'prec': None, 'pri': 2},
-        ("Task_4", "Server_2"): {'dur': 19, 'prec': ('Task_4', 'Server_1'), 'pri': 2},
-        ("Task_4", "Server_3"): {'dur': 16, 'prec': ('Task_4', 'Server_2'), 'pri': 2},
-        ("Task_5", "Server_2"): {'dur': 12, 'prec': None, 'pri': 2},
-        ("Task_6", "Server_3"): {'dur': 10, 'prec': None, 'pri': 2},
-        ("Task_6", "Server_3"): {'dur': 20, 'prec': None, 'pri': 2},
-        ("Task_7", "Server_3"): {'dur': 15, 'prec': ('Task_3', 'Server_3'), 'pri': 2},
-        ('Task_D', 'Server_1'): {'dur': 20, 'prec': None, 'pri': 0},
-        ('Task_D2', 'Server_3'): {'dur': 12, 'prec': None, 'pri': 0}
+        ('Task_1', 'Server_1'): {'dur': int(round(25 * 0.1, 0)), 'prec': None, 'pri': 2},
+        ('Task_1', 'Server_2'): {'dur': int(round(10 * 0.1, 0)), 'prec': ('Task_1', 'Server_1'), 'pri': 2},
+        ('Task_2', 'Server_1'): {'dur': int(round(10 * 0.1, 0)), 'prec': None, 'pri': 3},
+        ('Task_2', 'Server_2'): {'dur': int(round(20 * 0.1, 0)), 'prec': ('Task_2', 'Server_1'), 'pri': 3},
+        ('Task_2', 'Server_3'): {'dur': int(round(12 * 0.1, 0)), 'prec': ('Task_2', 'Server_2'), 'pri': 3},
+        ('Task_3', 'Server_2'): {'dur': int(round(12 * 0.1, 0)), 'prec': ('Task_3', 'Server_3'), 'pri': 5},
+        ('Task_3', 'Server_3'): {'dur': int(round(28 * 0.1, 0)), 'prec': None, 'pri': 5},
+        ('Task_3', 'Server_2'): {'dur': int(round(12 * 0.1, 0)), 'prec': ('Task_3', 'Server_3'), 'pri': 5},
+        ("Task_4", "Server_1"): {'dur': int(round(12 * 0.1, 0)), 'prec': None, 'pri': 2},
+        ("Task_4", "Server_2"): {'dur': int(round(19 * 0.1, 0)), 'prec': ('Task_4', 'Server_1'), 'pri': 2},
+        # ("Task_4", "Server_3"): {'dur': 16, 'prec': ('Task_4', 'Server_2'), 'pri': 2},
+        # ("Task_5", "Server_2"): {'dur': 12, 'prec': None, 'pri': 2},
+        # ("Task_6", "Server_3"): {'dur': 10, 'prec': None, 'pri': 2},
+        # ("Task_6", "Server_3"): {'dur': 20, 'prec': None, 'pri': 2},
+        # ("Task_7", "Server_3"): {'dur': 15, 'prec': ('Task_3', 'Server_3'), 'pri': 2},
+        # ('Task_D', 'Server_1'): {'dur': 20, 'prec': None, 'pri': 0},
+        # ('Task_D2', 'Server_3'): {'dur': 12, 'prec': None, 'pri': 0}
 
     }
 
     results = jobshop(TASKS)
     schedule = pd.DataFrame(results)
+    d = dict()
+    ss = ['Server_1', 'Server_2', 'Server_3']  ## Server Set
     withCon = getConsumption(schedule)
+
+    ## Converting schedule to the time-indexed server utilization matrix
+
+    J = range(0, int(max(schedule.Finish)))  ## J is the range for the schedule
+    cs = np.zeros((len(ss), len(J)))  ## Create an empty matrix to be filled later
+    m = 0  ## Counter for constructing the 'cs' matrix
+    schedule = schedule.sort_values(by=['Start'])  ## Sorting the schedule by the start times, might not be neccessary
+
+    for s in ss:  ## Loop through servers ##
+        df = schedule[schedule['Machine'] == s]
+        for k in df.iterrows():
+            for j in range(int(k[1].Start), int(k[1].Finish)):
+                cs[m, j] = k[1].Consumption ## Add consumption for processing 'k[1].Task' in server 'ss'
+                                            ## Note that amount of consumption is added by the function getConsumption()
+
+        m += 1
+
     # mpl.rcParams['figure.dpi'] = 300
     # mpl.rcParams['savefig.dpi'] = 300
     fig = visualize(results)
     fig.show()
     # fig.savefig('graph6.svg')
-
-
-
-

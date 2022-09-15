@@ -126,8 +126,11 @@ for k, v in d1.items():
 d3 = {}
 j = 0
 
+withCon = [0.001, 0.001, 0.001]
+periods = 2
+withCon = np.reshape(np.tile(np.array(withCon), periods), (len(withCon),-1))
 for i in model.edSer:
-    d3[i] = withCon[j] * 1.5
+    d3[i] = withCon[j]
     j += 1
 
 d4 = {}
@@ -278,11 +281,10 @@ model.cons7 = pyo.Constraint(model.S * model.J, rule=ax_constraint_rule7)
 model.cons8 = pyo.Constraint(model.S * model.J, rule=ax_constraint_rule8)
 model.cons20 = pyo.Constraint(model.S * model.J, rule=maxGenCons)
 
-
 model.name = "DroopControlledIMG"
 # opt = pyo.SolverFactory("ipopt")
-# opt = pyo.SolverFactory('bonmin', executable="C:\\msys64\\home\\Administrator\\bonmin.exe")
-opt = pyo.SolverFactory('coeunne', executable="C:\\msys64\\home\\Administrator\\couenne.exe")
+opt = pyo.SolverFactory('bonmin', executable="C:\\msys64\\home\\Administrator\\bonmin.exe")
+# opt = pyo.SolverFactory('coeunne', executable="C:\\msys64\\home\\Administrator\\couenne.exe")
 # opt.options['acceptable_tol'] = 1e-3
 # instance.pprint()
 # opt.options['max_iter'] = 100000000
