@@ -1,4 +1,4 @@
-import pandas as pd
+
 import cmath
 import pyomo.environ as pyo
 import math
@@ -11,8 +11,11 @@ from pyomo.environ import ConcreteModel, minimize, SolverFactory, Set, Param, Va
     TransformationFactory
 from pyomo.gdp import Disjunction
 import pickle
-import Scheduling2 as sch2
-from scenarioGeneration3 import createScenarios
+import pandas as pd
+
+
+
+
 
 def arrtoDict(arr):
     d = dict()
@@ -21,9 +24,18 @@ def arrtoDict(arr):
             d[k, j] = l
     return d
 
-red_scenes, red_probs = createScenarios()
-len(red_scenes[0,0])
-def microgrid_model(dfR, dfX, red_scenes, red_probs, withCon, PRID, PRIS):
+
+# %%
+def microgrid_model(dfR, dfX, red_scenes, red_probs, pars: dict):
+    withCon = pars['withCon']
+    PRID = pars['PRID']
+    PRIS = pars['PRIS']
+    drSet = pars['drSet']
+
+    # diSet = pars['diSet']
+    # sSet = pars['sSet']
+    # pars['renSet']
+
     dict_complex = dict()
     dict_mag = dict()
     dict_the = dict()
@@ -52,7 +64,7 @@ def microgrid_model(dfR, dfX, red_scenes, red_probs, withCon, PRID, PRIS):
 
     model = ConcreteModel()
     model.N = pyo.Param(default=int(math.sqrt(len(dict_mag))))
-    model.Z = Param(initialize=red_scenes.shape[0]) ## after changing the preprocessing of red_scenes this is the
+    model.Z = Param(initialize=red_scenes.shape[0])  ## after changing the preprocessing of red_scenes this is the
     ## correct one
     # model.Z = Param(initialize=1)  ## For test purposes
 
@@ -63,11 +75,15 @@ def microgrid_model(dfR, dfX, red_scenes, red_probs, withCon, PRID, PRIS):
 
     model.J = pyo.RangeSet(0, int(math.sqrt(len(dict_mag))) - 1)
     model.T = pyo.RangeSet(0, len(red_scenes) - 1)
-    model.drgenSet = pyo.Set(initialize={0, 1, 12, 21, 22, 26})
-    model.digenSet = pyo.Set(initialize={})
-    model.S = pyo.Set(initialize={0, 1, 2, 3, 4, 5})
-    model.renGen = pyo.Set(initialize={5, 9, 28})
-    edge_servers = set(sorted([2, 10, 11]))
+    # model.drgenSet = pyo.Set(initialize={0, 1, 12, 21, 22, 26})
+    model.drgenSet = pyo.Set(initialize=pars['drSet'])
+    model.digenSet = pyo.Set(initialize=pars['diSet'])
+    # model.S = pyo.Set(initialize={0, 1, 2, 3, 4, 5})
+    model.S = pyo.Set(initialize=pars['sSet'])
+    # model.renGen = pyo.Set(initialize={5, 9, 28})
+    model.renGen = pyo.Set(initialize=pars['renSet'])
+    # edge_servers = set(sorted([2, 10, 11]))
+    edge_servers = pars['eSet']
     model.edSer = pyo.Set(initialize=edge_servers)
 
     # renGen = np.zeros(shape=(nScenarios, len(model.rengenSet)))
@@ -137,7 +153,7 @@ def microgrid_model(dfR, dfX, red_scenes, red_probs, withCon, PRID, PRIS):
     model.EP = pyo.Param(model.T * model.edSer, initialize=d3)  ## There might be a need to add T
     model.EQ = pyo.Param(model.T, model.edSer, initialize=d4)  ## There might be a need to add T
     # model.SPROBS = pyo.Param(model.S, initialize=arrtoDict(red_probs))  ## There might be a need to add T
-    model.SPROBS = pyo.Param(model.S, initialize=red_probs) ## Either this or above need to think on it
+    model.SPROBS = pyo.Param(model.S, initialize=red_probs)  ## Either this or above need to think on it
 
     model.p0 = pyo.Param(model.T * model.S * model.J, initialize=d1)
     model.q0 = pyo.Param(model.T * model.S * model.J, initialize=d2)
@@ -224,7 +240,7 @@ def microgrid_model(dfR, dfX, red_scenes, red_probs, withCon, PRID, PRIS):
                     1 + m.KPF * (m.w[t, s] - m.w0))
         else:
             return m.pl[t, s, i] == ((model.r[t, i] * model.EP[t, i]) + m.p0[t, s, i]) * pow(m.v[t, s, i] / m.V0,
-                                                                                          m.alpha) * (
+                                                                                             m.alpha) * (
                            1 + m.KPF * (m.w[t, s] - m.w0))
 
     def ax_constraint_rule8(m, t, s, i):
@@ -265,8 +281,32 @@ def microgrid_model(dfR, dfX, red_scenes, red_probs, withCon, PRID, PRIS):
 def microgrid_solve(model):
     return SolverFactory('bonmin', executable="C:\\msys64\\home\\Administrator\\bonmin.exe").solve(model, tee=True)
 
+def initialize30():
+    pars30 = dict()
+    pars30['drSet'] = {0, 1, 12, 21, 22, 26}
+    # PRID = np.random.poisson(2, 30).copy()
+    # PRID[np.argwhere(PRID == 0)] = 1
+    # PRIS = np.random.poisson(4, 3).copy()
+    # PRIS[np.argwhere(PRIS == 0)] = 1
+    PRID = np.ones(30)
+    PRIS = np.ones(30)
+    pars30['PRID'] = PRID
+    pars30['PRIS'] = PRIS
+    pars30['withCon'] = [0.001, 0.001, 0.001]
+    pars30['eSet'] = {2, 10, 11}
+    pars30['renSet'] = {5, 9, 28}
+    pars30['sSet'] = set(range(0,6))
+    pars30['diSet']  = {}
+    pars30['SGmax'] = dict(zip(pars30['drSet'], [0.05, 0.06, 0.05, 0.05, 0.06, 0.05]))
 
+
+    return pars30
+
+# %%
 if __name__ == "__main__":
+    from scenarioGeneration3 import createScenarios
+    from dddas2022_agg import microgrid_model
+
     with open('datFiles\\tasks.txt', 'rb') as handle:
         data = handle.read()
     TASKS = pickle.loads(data)
@@ -275,26 +315,21 @@ if __name__ == "__main__":
     dfX = pd.read_csv('datFiles\\dat30X.csv', header=None, sep='\t')
     # red_scenes = np.loadtxt('datFiles\\red_scenes2.csv', delimiter=',')
     # red_probs = np.loadtxt('datFiles\\red_probs2.csv', delimiter=',')
-    red_scenes, red_probs = createScenarios()
+    red_scenes, red_probs = createScenarios(1)
 
     P = len(red_scenes)
     # tiled_scenes = np.tile(red_scenes, (P, 1))  ## P is the number of periods
     # reshaped_tiled_scenes = np.reshape(tiled_scenes, (P, 6, 24))
     # tiled_probabilities = np.tile(red_probs, (P, 1))
     # reshaped_tiled_probabilities = np.reshape(tiled_probabilities, (P, 6))
-
-    PRID = np.random.poisson(2, 30).copy()
-    PRID[np.argwhere(PRID == 0)] = 1
-    PRIS = np.random.poisson(4, 3).copy()
-    PRIS[np.argwhere(PRIS == 0)] = 1
-    #
     # results = sch2.jobshop(TASKS)
     # schedule = pd.DataFrame(results)
     # withCon = sch2.getConsumption(schedule)
     # modelM = microgrid_model(dfR, dfX, red_scenes, red_probs, withCon.apply(lambda x: x ** -1), PRID, PRIS)
-    withCon =[0.001,0.001,0.001]
     # modelM = microgrid_model(dfR, dfX, reshaped_tiled_scenes, reshaped_tiled_probabilities, withCon , PRID, PRIS)
-    modelM = microgrid_model(dfR, dfX, red_scenes, red_probs, withCon , PRID, PRIS)
+
+    pars30 = initialize30()
+    modelM = microgrid_model(dfR, dfX, red_scenes, red_probs, pars30)
 
     results = microgrid_solve(modelM)
 

@@ -14,11 +14,13 @@ def windPow(ws):
         return prated
 
 
-def createScenarios():
+def createScenarios(timeInd:int):
+    from scenarioGeneration3 import windPow
     loadMean = 0.015
     loadSD = loadMean * 0.1
+    reference_density = norm.pdf(loadMean,loadMean,loadSD)
     n = 100
-    timeInd = 2
+    # timeInd = 8
 
     bSet = set(range(0, 30))
     drSet = {3, 5, 9, 11, 27, 29}
@@ -46,7 +48,7 @@ def createScenarios():
         for j in range(0, (dn + len(rSet)) * timeInd):
             if j % 24 < dn:
                 if darr[i, j] > 0:
-                    prob *= norm.pdf(darr[i, j], loadMean, loadSD)
+                    prob *= norm.pdf(darr[i, j], loadMean, loadSD) / reference_density
                 elif darr[i, j] <= 0:
                     prob *= norm.cdf(0, loadMean, loadSD)
             elif j % 24 >= dn:
