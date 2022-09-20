@@ -1,4 +1,3 @@
-
 import cmath
 import pyomo.environ as pyo
 import math
@@ -14,9 +13,6 @@ import pickle
 import pandas as pd
 
 
-
-
-
 def arrtoDict(arr):
     d = dict()
     for k, v in enumerate(arr):
@@ -30,11 +26,6 @@ def microgrid_model(dfR, dfX, red_scenes, red_probs, pars: dict):
     withCon = pars['withCon']
     PRID = pars['PRID']
     PRIS = pars['PRIS']
-    drSet = pars['drSet']
-
-    # diSet = pars['diSet']
-    # sSet = pars['sSet']
-    # pars['renSet']
 
     dict_complex = dict()
     dict_mag = dict()
@@ -276,36 +267,35 @@ def microgrid_model(dfR, dfX, red_scenes, red_probs, pars: dict):
     return model
 
 
-# %%
-
 def microgrid_solve(model):
     return SolverFactory('bonmin', executable="C:\\msys64\\home\\Administrator\\bonmin.exe").solve(model, tee=True)
+
 
 def initialize30():
     pars30 = dict()
     pars30['drSet'] = {0, 1, 12, 21, 22, 26}
-    # PRID = np.random.poisson(2, 30).copy()
-    # PRID[np.argwhere(PRID == 0)] = 1
-    # PRIS = np.random.poisson(4, 3).copy()
-    # PRIS[np.argwhere(PRIS == 0)] = 1
+    pars30['eSet'] = {2, 10, 11}
+    pars30['renSet'] = {5, 9, 28}
+    pars30['sSet'] = set(range(0, 6))
+    pars30['diSet'] = {}
     PRID = np.ones(30)
     PRIS = np.ones(30)
     pars30['PRID'] = PRID
     pars30['PRIS'] = PRIS
     pars30['withCon'] = [0.001, 0.001, 0.001]
-    pars30['eSet'] = {2, 10, 11}
-    pars30['renSet'] = {5, 9, 28}
-    pars30['sSet'] = set(range(0,6))
-    pars30['diSet']  = {}
     pars30['SGmax'] = dict(zip(pars30['drSet'], [0.05, 0.06, 0.05, 0.05, 0.06, 0.05]))
-
+    # PRID = np.random.poisson(2, 30).copy()
+    # PRID[np.argwhere(PRID == 0)] = 1
+    # PRIS = np.random.poisson(4, 3).copy()
+    # PRIS[np.argwhere(PRIS == 0)] = 1
 
     return pars30
 
+
 # %%
 if __name__ == "__main__":
-    from scenarioGeneration3 import createScenarios
-    from dddas2022_agg import microgrid_model
+    from scenarioGeneration3 import createScenarios2
+    from dddas2022_agg import microgrid_model, initialize30, microgrid_solve
 
     with open('datFiles\\tasks.txt', 'rb') as handle:
         data = handle.read()
@@ -315,9 +305,8 @@ if __name__ == "__main__":
     dfX = pd.read_csv('datFiles\\dat30X.csv', header=None, sep='\t')
     # red_scenes = np.loadtxt('datFiles\\red_scenes2.csv', delimiter=',')
     # red_probs = np.loadtxt('datFiles\\red_probs2.csv', delimiter=',')
-    red_scenes, red_probs = createScenarios(1)
 
-    P = len(red_scenes)
+
     # tiled_scenes = np.tile(red_scenes, (P, 1))  ## P is the number of periods
     # reshaped_tiled_scenes = np.reshape(tiled_scenes, (P, 6, 24))
     # tiled_probabilities = np.tile(red_probs, (P, 1))
@@ -329,9 +318,10 @@ if __name__ == "__main__":
     # modelM = microgrid_model(dfR, dfX, reshaped_tiled_scenes, reshaped_tiled_probabilities, withCon , PRID, PRIS)
 
     pars30 = initialize30()
+    red_scenes, red_probs = createScenarios2(2, pars30)
     modelM = microgrid_model(dfR, dfX, red_scenes, red_probs, pars30)
-
     results = microgrid_solve(modelM)
+
 
     for i in modelM.r:
         print(" ", i, value(modelM.r[i]))
