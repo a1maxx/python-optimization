@@ -115,7 +115,7 @@ def createScenarios2(timeInd, pars_for_scenarios:dict):
         for j in range(0, 30 * timeInd):
             if j % 30 in demandSet:
                 if darr[i, j] > 0:
-                    prob *= norm.pdf(darr[i, j], loadMean, loadSD)
+                    prob *= norm.pdf(darr[i, j], loadMean, loadSD) / reference_density
                 elif darr[i, j] <= 0:
                     prob *= norm.cdf(0, loadMean, loadSD)
             elif j % 30 in rSet:
