@@ -38,22 +38,21 @@ def yReal_init(m, i, j):
 model.yReal = pyo.Var(model.J, model.J, initialize=yReal_init, bounds=(-100, 100))
 model.yIm = pyo.Var(model.J, model.J, initialize=0.1, bounds=(-100, 100))
 
-model.yMag = pyo.Var(model.J, model.J, initialize=0.1, bounds=(-100, 100))
-model.yThe = pyo.Var(model.J, model.J, initialize=0.1, bounds=(-100, 100))
+model.yMag = pyo.Var(model.J, model.J, initialize=1)
+model.yThe = pyo.Var(model.J, model.J, initialize=1)
 
 model.ql = pyo.Var(model.J, initialize=0, within=pyo.NonNegativeReals, bounds=(0, 2))
 model.pl = pyo.Var(model.J, initialize=0, within=pyo.NonNegativeReals, bounds=(0, 2))
 model.pg = pyo.Var(model.J, initialize=0, within=pyo.NonNegativeReals, bounds=(0, 2))
 model.qg = pyo.Var(model.J, initialize=0, within=pyo.NonNegativeReals, bounds=(0, 2))
 
-model.v = pyo.Var(model.J, domain=pyo.NonNegativeReals, initialize=1.0, bounds=(0.5, 1.5))
-model.d = pyo.Var(model.J, domain=pyo.Reals, initialize=1.0, bounds=(-math.pi / 2, math.pi / 2))
+model.v = pyo.Var(model.J, domain=pyo.NonNegativeReals, initialize=1.0, bounds=(0.95, 1.05))
+model.d = pyo.Var(model.J, domain=pyo.Reals, initialize=1.0)
 
-model.mp = pyo.Var(model.genSet, domain=pyo.NonNegativeReals, initialize=0.03, bounds=(0, 1))
-model.nq = pyo.Var(model.genSet, domain=pyo.NonNegativeReals, initialize=0.01, bounds=(0, 1))
+model.mp = pyo.Var(model.genSet, domain=pyo.Reals, initialize=0.03,bounds=(-2,2))
+model.nq = pyo.Var(model.genSet, domain=pyo.Reals, initialize=0.01, bounds=(-2,2))
 
-model.w = pyo.Var(domain=pyo.NonNegativeReals, initialize=1)
-model.w2 = pyo.Param(domain=pyo.NonNegativeReals, initialize=1)
+model.w = pyo.Var(domain=pyo.NonNegativeReals, initialize=1,bounds=(0.995,1.005))
 
 # data.load(filename="C:\\Users\\Administrator\\Py Files\\model.dat", model=model)
 # data = pyo.DataPortal()
@@ -61,8 +60,13 @@ model.w2 = pyo.Param(domain=pyo.NonNegativeReals, initialize=1)
 # model2 = model.create_instance(data)
 # model2.pprint()
 
+# def obj_expression(m):
+#     return sum(pow((m.v[i] - 1.0), 2) for i in m.J)
+
+
 def obj_expression(m):
-    return sum(pow((m.v[i] - 1.0), 2) for i in m.J)
+    return 1/2  * sum((m.v[i]*m.v[j]*m.yMag[i,j]) * pyo.cos(m.d[i]+m.d[j]+m.yThe[i,j]) for i,j in m.J*m.J) + \
+           (-1/2) * sum((m.v[i]*m.v[j]*m.yMag[i,j]) * pyo.sin(m.d[i]+m.d[j]+m.yThe[i,j]) for i,j in m.J*m.J)
 
 
 model.o = pyo.Objective(rule=obj_expression, sense=pyo.minimize)
@@ -70,28 +74,28 @@ model.o = pyo.Objective(rule=obj_expression, sense=pyo.minimize)
 
 def ax_constraint_rule3(m, i):
     # # return the expression for the constraint for i
-    # return (m.pg[i] - m.pl[i]) - sum(
-    #     m.v[i] * m.v[j] * m.yMag[i, j] * pyo.cos(m.yThe[i, j] + m.d[j] - m.d[i]) for j in m.J) == 0
+    return (m.pg[i] - m.pl[i]) - sum(
+        m.v[i] * m.v[j] * m.yMag[i, j] * pyo.cos(m.yThe[i, j] + m.d[j] - m.d[i]) for j in m.J) == 0
 
     # Approximated version - cosine
-    return (m.pg[i] - m.pl[i]) - \
-           sum(m.v[i] * m.v[j] * m.yMag[i, j] * (1 - pow((m.yThe[i, j] + m.d[j] - m.d[i]), 2) / 2) for j in
-               m.J if (m.R[i, j] != 0 or i == j)) == 0
+    # return (m.pg[i] - m.pl[i]) - \
+    #        sum(m.v[i] * m.v[j] * m.yMag[i, j] * (1 - pow((m.yThe[i, j] + m.d[j] - m.d[i]), 2) / 2) for j in
+    #            m.J if (m.R[i, j] != 0 or i == j)) == 0
 
 
 def ax_constraint_rule4(m, i):
     # return the expression for the constraint for i
 
-    # return (m.qg[i] - m.ql[i]) + sum(
-    #     m.v[i] * m.v[j] * m.yMag[i, j] * pyo.sin(m.yThe[i, j] + m.d[j] - m.d[i]) for j in m.J) == 0
+    return (m.qg[i] - m.ql[i]) + sum(
+        m.v[i] * m.v[j] * m.yMag[i, j] * pyo.sin(m.yThe[i, j] + m.d[j] - m.d[i]) for j in m.J) == 0
 
     # Approximated version - sine
-    return (m.qg[i] - m.ql[i]) + sum(
-        m.v[i] * m.v[j] * m.yMag[i, j] * (16 * (m.yThe[i, j] + m.d[j] - m.d[i]) *
-                                          (math.pi - (m.yThe[i, j] + m.d[j] - m.d[i]))) / (
-                5 * pow(math.pi, 2) - 4 * (m.yThe[i, j] + m.d[j] - m.d[i]) *
-                (math.pi - (m.yThe[i, j] + m.d[j] - m.d[i])))
-        for j in m.J if (m.R[i, j] != 0 or i == j)) == 0
+    # return (m.qg[i] - m.ql[i]) + sum(
+    #     m.v[i] * m.v[j] * m.yMag[i, j] * (16 * (m.yThe[i, j] + m.d[j] - m.d[i]) *
+    #                                       (math.pi - (m.yThe[i, j] + m.d[j] - m.d[i]))) / (
+    #             5 * pow(math.pi, 2) - 4 * (m.yThe[i, j] + m.d[j] - m.d[i]) *
+    #             (math.pi - (m.yThe[i, j] + m.d[j] - m.d[i])))
+    #     for j in m.J if (m.R[i, j] != 0 or i == j)) == 0
 
 
 def ax_constraint_rule5(m, i):
@@ -118,66 +122,42 @@ def ax_constraint_rule8(m, i):
 
 
 def admittanceReal(m, i, j):
-    if m.R[i, j] != 0:
-        if i != j:
-            return m.yReal[i, j] == -(m.R[i, j] / (pow(m.R[i, j], 2) + pow((m.X[i, j] * m.w2), 2)))
-        else:
-            return pyo.Constraint.Skip
+    if i != j and m.R[i,j] != 0:
+        return m.yReal[i, j] == -m.R[i, j] / (m.R[i, j] ** 2 + (m.X[i, j] * m.w) ** 2)
     else:
         return pyo.Constraint.Skip
 
 
 def admittanceIm(m, i, j):
-    if m.R[i, j] != 0:
-        if i != j:
-            return m.yIm[i, j] == (m.X[i, j] * m.w2) / (pow(m.R[i, j], 2) + pow((m.X[i, j] * m.w2), 2))
-        else:
-            return pyo.Constraint.Skip
+    if i != j and m.R[i,j] != 0:
+        return m.yIm[i, j] == (m.X[i, j] * m.w) / (m.R[i, j] ** 2 + (m.X[i, j] * m.w) ** 2)
     else:
         return pyo.Constraint.Skip
 
 
 def admittanceDiagReal(m, i, j):
     if i == j:
-        return m.yReal[i, j] == -sum(m.yReal[i, f] for f in m.J if (f != i and m.R[i, f] != 0))
+        return m.yReal[i, j] == sum(-m.yReal[i, f] for f in [1, 2, 3] if f != i)
     else:
         return pyo.Constraint.Skip
 
 
 def admittanceDiagIm(m, i, j):
     if i == j:
-        return m.yIm[i, j] == -sum(m.yIm[i, f] for f in m.J if (f != i and m.R[i, f] != 0))
+        return m.yIm[i, j] == sum(-m.yIm[i, f] for f in [1, 2, 3] if f != i)
     else:
         return pyo.Constraint.Skip
 
 
 def admittanceMag(m, i, j):
-    if m.R[i, j] != 0:
-        if i != j:
-            return m.yMag[i, j] == -pyo.sqrt(pow(m.yReal[i, j], 2) + pow(m.yIm[i, j], 2))
-        else:
-            return pyo.Constraint.Skip
-    else:
-        return pyo.Constraint.Skip
-
-
-def admittanceDiagMag(m, i, j):
-    if i == j:
-        return m.yMag[i, j] == -sum(m.yMag[i, f] for f in m.J if (f != i and m.R[i, f] != 0))
-    else:
-        return pyo.Constraint.Skip
+        return m.yMag[i, j] == pyo.sqrt(m.yReal[i, j] ** 2 + m.yIm[i, j] ** 2)
 
 
 def admittanceThe(m, i, j):
-    return m.yThe[i, j] == pyo.atan(m.yIm[i, j] / m.yReal[i, j])
-
-    # Approximated version - arctan
-    # return m.yThe[i, j] == (m.yIm[i, j] / m.yReal[i, j]) / (1 + 0.28125 * pow((m.yIm[i, j] / m.yReal[i, j]), 2))
-
-    # Approximated version 2 - arctan
-    # return m.yThe[i, j] == math.pi / 4 * (m.yIm[i, j] / m.yReal[i, j]) - (m.yIm[i, j] / m.yReal[i, j]) * (
-    #         abs(m.yIm[i, j] / m.yReal[i, j]) - 1) * (0.2447 + 0.0663 * abs(m.yIm[i, j] / m.yReal[i, j]))
-
+    if i == j:
+        return m.yThe[i, j] == pyo.atan(m.yIm[i, j] / m.yReal[i, j])
+    else:
+        return m.yThe[i, j] == pyo.atan(m.yIm[i, j] / m.yReal[i, j]) + math.pi
 
 def maxGenCons(m, i):
     if i in m.genSet:
@@ -185,13 +165,12 @@ def maxGenCons(m, i):
     else:
         return pyo.Constraint.Skip
 
-
-def maxwCons(m):
-    return m.w <= 1.005
-
-
-def minwCons(m):
-    return m.w >= 0.997
+# def maxwCons(m):
+#     return m.w <= 1.005
+#
+#
+# def minwCons(m):
+#     return m.w >= 0.997
 
 
 # def flow_cons3(m):
@@ -228,18 +207,18 @@ model.cons14 = pyo.Constraint(model.J, model.J, rule=admittanceIm)
 model.cons15 = pyo.Constraint(model.J, model.J, rule=admittanceDiagReal)
 model.cons16 = pyo.Constraint(model.J, model.J, rule=admittanceDiagIm)
 model.cons17 = pyo.Constraint(model.J, model.J, rule=admittanceMag)
-model.cons18 = pyo.Constraint(model.J, model.J, rule=admittanceDiagMag)
+# model.cons18 = pyo.Constraint(model.J, model.J, rule=admittanceDiagMag)
 model.cons19 = pyo.Constraint(model.J, model.J, rule=admittanceThe)
 model.cons20 = pyo.Constraint(model.J, rule=maxGenCons)
-model.cons21 = pyo.Constraint(rule=maxwCons)
-model.cons22 = pyo.Constraint(rule=minwCons)
+# model.cons21 = pyo.Constraint(rule=maxwCons)
+# model.cons22 = pyo.Constraint(rule=minwCons)
 
 model.name = "DroopControlledIMG"
 opt = pyo.SolverFactory("ipopt")
-# opt.options['acceptable_tol'] = 1e-3
+opt.options['acceptable_tol'] = 1e-2
+opt.options['max_iter'] = 100000000
 instance = model.create_instance(filename="model3.dat")
 # instance.pprint()
-opt.options['max_iter'] = 100000000
 
 log_infeasible_constraints(instance, log_expression=True, log_variables=True)
 logging.basicConfig(filename='example2.log', level=logging.INFO)
@@ -268,3 +247,43 @@ for parmobject in instance.component_objects(pyo.Var, active=True):
 (pyo.value(instance.V0) - pyo.value(instance.v[1])) * (1 / pyo.value(instance.nq[1]))
 pyo.value((1 / instance.nq[1]) * (instance.V0 - instance.v[1]))
 pyo.value(instance.qg[1])
+
+
+
+# %%
+import cmath,math
+import numpy as np
+a = complex(2,1)
+b = complex(3,4)
+c = complex(4,1)
+d = complex(5,6)
+ap = cmath.polar(a)
+bp = cmath.polar(b)
+cp = cmath.polar(c)
+dp = cmath.polar(d)
+
+
+
+
+def mmult2R(ap:tuple,bp:tuple):
+    return  round((ap[0] * bp[0]) * math.cos(ap[1]+bp[1]),4)
+
+
+
+def mmult3R(ap:tuple,bp:tuple,cp:tuple):
+    return (ap[0] * bp[0] * cp[0]) * math.cos(ap[1]+bp[1]+cp[1])
+
+
+def mmult3Rv2(ap:tuple,bp:tuple,cp:tuple):
+    return 0.5 * (((ap[0]*bp[0]*cp[0]) * math.cos(-ap[1]+bp[1]+cp[1])) + ((ap[0]*bp[0]*cp[0]) * math.cos(ap[1]-bp[1]+cp[1])))
+
+def mmult3Xv2(ap:tuple,bp:tuple,cp:tuple):
+    return 0.5 * (((ap[0]*bp[0]*cp[0]) * math.sin(-ap[1]+bp[1]+cp[1])) + ((ap[0]*bp[0]*cp[0]) * math.sin(ap[1]-bp[1]+cp[1])))
+
+def mmult3I(ap:tuple,bp:tuple,cp:tuple):
+    return round((ap[0] * bp[0] * cp[0]) * math.sin(ap[1]+bp[1]+cp[1]),4)
+
+def vanObj(a,b,c):
+    return 0.5 * c * ((np.conj(a)*b) + (np.conj(b)*a))
+
+

@@ -79,16 +79,12 @@ red_scenes = np.array([[0.0142871, 0.01661571, 0.0151843, 0.01447392, 0.01459851
                         0.01428264, 0.01534556, 0.01522338, 0.01507315, 0.01755332,
                         0.01547741, 0., 0., 0.00837387]])
 
-
-
-
 red_probs = np.array([0.3866797485561724,
                       0.14159303981175864,
                       0.17084273795134894,
                       0.11060358774509084,
                       0.07213292449978555,
                       0.11814796143584368])
-
 
 nScenarios = len(red_scenes)
 a = np.zeros(nScenarios)
@@ -147,7 +143,11 @@ model.qg = pyo.Var(model.S * model.J, initialize=0, within=pyo.NonNegativeReals,
 model.v = pyo.Var(model.S * model.J, domain=pyo.NonNegativeReals, initialize=1.0, bounds=(0.9, 1.1))
 model.d = pyo.Var(model.S * model.J, domain=pyo.Reals, initialize=1.0, bounds=(-math.pi / 2, math.pi / 2))
 
-model.mp = pyo.Var(model.drgenSet, domain=pyo.NonNegativeReals, initialize=0.03, bounds=(0, 1))
+# model.mp = pyo.Var(model.drgenSet, domain=pyo.NonNegativeReals, initialize=0.03, bounds=(0, 1))
+# model.nq = pyo.Var(model.drgenSet, domain=pyo.NonNegativeReals, initialize=0.01, bounds=(0, 1))
+x = [0.02 for _ in model.drgenSet]
+
+model.mp = pyo.Param(model.drgenSet, initialize=dict(zip(model.drgenSet, x)))
 model.nq = pyo.Var(model.drgenSet, domain=pyo.NonNegativeReals, initialize=0.01, bounds=(0, 1))
 
 model.w = pyo.Var(model.S, domain=pyo.NonNegativeReals, initialize=1, bounds=(0.990, 1.00))
@@ -159,10 +159,6 @@ def obj_expression(m):
                                      (-1 / 2) * (model.yMag[i, j] * model.v[s, i] * model.v[s, j]) * model.w[s] *
                                      pyo.sin(model.yThe[i, j] + model.d[s, i] + model.d[s, j]) for j in m.J) for
                s, i in m.S * m.J)
-
-
-# def obj_expression(m):
-#     return sum(model.SPROBS[s] * pow((m.v[s, i] - 1.0), 2) for s, i in m.S * m.J)
 
 
 model.o = pyo.Objective(rule=obj_expression, sense=pyo.minimize)
@@ -224,14 +220,6 @@ def maxGenCons(m, s, i):
         return pyo.Constraint.Skip
 
 
-def dummyCons(m, i):
-    return abs(m.mp[i]) >= 0.001
-
-
-def dummyCons2(m, i):
-    return abs(m.nq[i]) >= 0.001
-
-
 model.cons3 = pyo.Constraint(model.S * model.J, rule=ax_constraint_rule3)
 model.cons4 = pyo.Constraint(model.S * model.J, rule=ax_constraint_rule4)
 model.cons5 = pyo.Constraint(model.S * model.J, rule=ax_constraint_rule5)
@@ -239,8 +227,6 @@ model.cons6 = pyo.Constraint(model.S * model.J, rule=ax_constraint_rule6)
 model.cons7 = pyo.Constraint(model.S * model.J, rule=ax_constraint_rule7)
 model.cons8 = pyo.Constraint(model.S * model.J, rule=ax_constraint_rule8)
 model.cons20 = pyo.Constraint(model.S * model.J, rule=maxGenCons)
-model.cons25 = pyo.Constraint(model.drgenSet, rule=dummyCons)
-model.cons26 = pyo.Constraint(model.drgenSet, rule=dummyCons2)
 
 model.name = "DroopControlledIMG"
 opt = pyo.SolverFactory("ipopt")
@@ -252,58 +238,3 @@ log_infeasible_constraints(model, log_expression=True, log_variables=True)
 logging.basicConfig(filename='example2.log', level=logging.INFO)
 
 results = opt.solve(model, tee=True)
-
-
-
-# %%
-
-model.display()
-model.pprint()
-model
-for parmobject in model.component_objects(pyo.Param, active=True):
-    nametoprint = str(str(parmobject.name))
-    print("Parameter ", nametoprint)
-    for index in parmobject:
-        vtoprint = pyo.value(parmobject[index])
-        print("   ", index, vtoprint)
-
-for parmobject in model.component_objects(pyo.Var, active=True):
-    nametoprint = str(str(parmobject.name))
-    print("Variable ", nametoprint)
-    for index in parmobject:
-        vtoprint = pyo.value(parmobject[index])
-        print("   ", index, vtoprint)
-
-total = 0
-total2 = 0
-
-for i in model.drgenSet:
-    total += pyo.value(model.mp[i])
-    total2 += pyo.value(model.nq[i])
-
-mpa = []
-nqa = []
-
-for i in model.drgenSet:
-    mpa.append(value(model.mp[i]) / (total / 5))
-    nqa.append(value(model.nq[i]) / (total2 / 7))
-
-mpa
-nqa
-
-mps = np.array(mpa)
-nqs = np.array(nqa)
-pos = np.append(mps, nqs)
-minuses = {3, 5, 7, 8, 10, 11}
-pos2 = np.copy(pos)
-
-for i in minuses:
-    pos2[i] = -pos[i]
-
-pos2
-
-
-mpso = [1.589029, 0.034308, 1.138078, 0.919444, 0.050840, 1.144344]
-sum(mpso)
-nqso = [0.256885, 0.784892, 2.360074, 1.574549, 2.131491, 0.250231]
-sum(nqso)

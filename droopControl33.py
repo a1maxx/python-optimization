@@ -7,8 +7,8 @@ import logging
 from pyomo.environ import value, NonNegativeReals
 import numpy as np
 
-dfR = pd.read_csv('datFiles/dat30R.csv', header=None, sep='\t')
-dfX = pd.read_csv('datFiles/dat30X.csv', header=None, sep='\t')
+dfR = pd.read_csv('datFiles/dat33RM1.csv', header=None, sep='\t')
+dfX = pd.read_csv('datFiles/dat33XM1.csv', header=None, sep='\t')
 dict_complex = dict()
 dict_mag = dict()
 dict_the = dict()
@@ -43,51 +43,70 @@ model.alpha = pyo.Param(initialize=1)
 model.beta = pyo.Param(initialize=1)
 
 model.J = pyo.RangeSet(0, value(model.N) - 1)
-model.drgenSet = pyo.Set(initialize={0, 1, 12, 21, 22, 26})
+model.drgenSet = pyo.Set(initialize={12, 14, 24, 32})
 model.digenSet = pyo.Set(initialize={})
 model.S = pyo.Set(initialize={0, 1, 2, 3, 4, 5})
-model.renGen = pyo.Set(initialize={5, 9, 28})
-
-red_scenes = np.array([[0.0142871, 0.01661571, 0.0151843, 0.01447392, 0.01459851,
-                        0.01648786, 0.01444571, 0.01712976, 0.01375529, 0.01401984,
-                        0.0144069, 0.01544561, 0.01513461, 0.01652935, 0.01589923,
-                        0.01483155, 0.01622019, 0.01617301, 0.01571031, 0.01440533,
-                        0.01548189, 0.00398234, 0., 0.],
-                       [0.01369282, 0.01419896, 0.01482991, 0.01365515, 0.01386188,
-                        0.01542088, 0.01577201, 0.01607194, 0.01566899, 0.0141918,
-                        0.01460279, 0.01411875, 0.01495357, 0.01329354, 0.01645609,
-                        0.01401912, 0.01509148, 0.01489963, 0.01580174, 0.01446995,
-                        0.01698059, 0., 0., 0.02341324],
-                       [0.01440596, 0.01425452, 0.01633388, 0.01566497, 0.01515667,
-                        0.01452574, 0.01456681, 0.01453036, 0.01389228, 0.01522612,
-                        0.01502856, 0.01648278, 0.01469467, 0.01396081, 0.01346684,
-                        0.01586603, 0.01351808, 0.01559508, 0.01458911, 0.01503125,
-                        0.01530392, 0., 0.01678418, 0.],
-                       [0.01450568, 0.01599863, 0.01466543, 0.01402471, 0.01516821,
-                        0.01608881, 0.01540415, 0.01584648, 0.01702492, 0.01388498,
-                        0.01538247, 0.01497677, 0.01649909, 0.01591028, 0.01480524,
-                        0.01615183, 0.01472897, 0.01571282, 0.01387545, 0.01496012,
-                        0.0153322, 0.01779982, 0., 0.],
-                       [0.01473619, 0.01484334, 0.01539121, 0.01322294, 0.01372942,
-                        0.01358307, 0.01411846, 0.01569493, 0.01411612, 0.01677775,
-                        0.01464913, 0.01418254, 0.0154116, 0.01429859, 0.01565686,
-                        0.01560324, 0.0158023, 0.01546488, 0.01512918, 0.01515104,
-                        0.01636043, 0.01036646, 0.02721083, 0.],
-                       [0.01398067, 0.0144375, 0.01403121, 0.01478536, 0.01533134,
-                        0.01366032, 0.01532976, 0.01530912, 0.01720947, 0.01606686,
-                        0.01409194, 0.01553819, 0.01448271, 0.0154707, 0.01486835,
-                        0.01428264, 0.01534556, 0.01522338, 0.01507315, 0.01755332,
-                        0.01547741, 0., 0., 0.00837387]])
+model.renGen = pyo.Set(initialize={5, 9, 19, 28})
 
 
+red_scenes = np.array([[1.36907560e-03, 1.54640271e-03, 1.56766085e-03, 1.50499852e-03,
+        1.55982879e-03, 2.93229516e-02, 1.54711242e-03, 1.28637272e-03,
+        1.61519029e-03, 0.00000000e+00, 1.56693575e-03, 1.70506424e-03,
+        0.00000000e+00, 1.28900326e-03, 0.00000000e+00, 1.65271650e-03,
+        1.62779322e-03, 1.36435136e-03, 1.32032944e-03, 7.25985380e-10,
+        1.47263404e-03, 1.31912428e-03, 1.48273502e-03, 1.42207267e-03,
+        0.00000000e+00, 1.36742916e-03, 1.47520962e-03, 1.42608546e-03,
+        1.41272241e-02, 1.63529761e-03, 1.53800635e-03, 1.45586743e-03,
+        0.00000000e+00],
+       [1.39921704e-03, 1.46721944e-03, 1.31663129e-03, 1.46979191e-03,
+        1.53278952e-03, 0.00000000e+00, 1.38032051e-03, 1.66945298e-03,
+        1.51641760e-03, 0.00000000e+00, 1.58047121e-03, 1.51057545e-03,
+        0.00000000e+00, 1.54407237e-03, 0.00000000e+00, 1.32640132e-03,
+        1.52766109e-03, 1.46166691e-03, 1.41168136e-03, 6.39209250e-06,
+        1.42243710e-03, 1.38051470e-03, 1.38945985e-03, 1.46045647e-03,
+        0.00000000e+00, 1.36082889e-03, 1.36378970e-03, 1.42819112e-03,
+        0.00000000e+00, 1.65549243e-03, 1.46511017e-03, 1.48456286e-03,
+        0.00000000e+00],
+       [1.61983354e-03, 1.54830266e-03, 1.36869751e-03, 1.48602966e-03,
+        1.82483581e-03, 2.28499813e-04, 1.28330512e-03, 1.51884702e-03,
+        1.63353467e-03, 0.00000000e+00, 1.73589625e-03, 1.59741433e-03,
+        0.00000000e+00, 1.56317182e-03, 0.00000000e+00, 1.62610963e-03,
+        1.65019190e-03, 1.50448843e-03, 1.59886549e-03, 6.02103206e-10,
+        1.46962997e-03, 1.67192516e-03, 1.30891878e-03, 1.39723472e-03,
+        0.00000000e+00, 1.39258399e-03, 1.60038697e-03, 1.55332831e-03,
+        2.86834526e-02, 1.28589663e-03, 1.49715232e-03, 1.62272053e-03,
+        0.00000000e+00],
+       [1.51899344e-03, 1.50794776e-03, 1.65701861e-03, 1.43120087e-03,
+        1.57652358e-03, 0.00000000e+00, 1.63410562e-03, 1.58899562e-03,
+        1.51440683e-03, 8.22785901e-03, 1.58109415e-03, 1.63321051e-03,
+        0.00000000e+00, 1.60680779e-03, 0.00000000e+00, 1.68957975e-03,
+        1.44989626e-03, 1.38934498e-03, 1.45787376e-03, 1.92997407e-06,
+        1.64715880e-03, 1.63590468e-03, 1.29068528e-03, 1.35934811e-03,
+        0.00000000e+00, 1.40963064e-03, 1.55769680e-03, 1.45937317e-03,
+        0.00000000e+00, 1.37872010e-03, 1.42011396e-03, 1.61847241e-03,
+        0.00000000e+00],
+       [1.45352653e-03, 1.45209667e-03, 1.36016255e-03, 1.46906591e-03,
+        1.62070226e-03, 1.85998769e-02, 1.53436736e-03, 1.51886275e-03,
+        1.60890966e-03, 1.84811571e-02, 1.33995886e-03, 1.43245596e-03,
+        0.00000000e+00, 1.50214033e-03, 0.00000000e+00, 1.62681183e-03,
+        1.47848938e-03, 1.28348512e-03, 1.37365496e-03, 1.12407886e-05,
+        1.59404934e-03, 1.44139745e-03, 1.44036925e-03, 1.34375376e-03,
+        0.00000000e+00, 1.48140658e-03, 1.38830824e-03, 1.57130501e-03,
+        0.00000000e+00, 1.31715603e-03, 1.61739882e-03, 1.62395647e-03,
+        0.00000000e+00],
+       [1.56749384e-03, 1.67876452e-03, 1.47518838e-03, 1.39182731e-03,
+        1.66411471e-03, 0.00000000e+00, 1.54426650e-03, 1.40795660e-03,
+        1.40119108e-03, 0.00000000e+00, 1.28022889e-03, 1.60538204e-03,
+        0.00000000e+00, 1.61283554e-03, 0.00000000e+00, 1.54931437e-03,
+        1.46590150e-03, 1.49264517e-03, 1.45447718e-03, 8.35425652e-07,
+        1.60770155e-03, 1.39931415e-03, 1.65124827e-03, 1.58622026e-03,
+        0.00000000e+00, 1.58503249e-03, 1.49151124e-03, 1.56297890e-03,
+        0.00000000e+00, 1.56991247e-03, 1.59374894e-03, 1.61569973e-03,
+        0.00000000e+00]])
 
 
-red_probs = np.array([0.3866797485561724,
-                      0.14159303981175864,
-                      0.17084273795134894,
-                      0.11060358774509084,
-                      0.07213292449978555,
-                      0.11814796143584368])
+red_probs = np.array([0.40485334, 0.22507941, 0.15911502, 0.08346821, 0.06233838,
+       0.06514564])
 
 
 nScenarios = len(red_scenes)
@@ -95,27 +114,27 @@ a = np.zeros(nScenarios)
 # renGen = np.zeros(shape=(nScenarios, len(model.rengenSet)))
 prenGen = dict()
 qrenGen = dict()
-
-for i in model.J:
-    if i in model.drgenSet:
-        if i < len(red_scenes[0]):
-            red_scenes = np.insert(red_scenes, i, a, axis=1)
-        else:
-            red_scenes = np.append(red_scenes, np.zeros(shape=(nScenarios, 1)), axis=1)
-
+#
+# for i in model.J:
+#     if i in model.drgenSet:
+#         if i < len(red_scenes[0]):
+#             red_scenes = np.insert(red_scenes, i, a, axis=1)
+#         else:
+#             red_scenes = np.append(red_scenes, np.zeros(shape=(nScenarios, 1)), axis=1)
+PF = 0.328
 for i in model.J:
     if i in model.renGen:
         for s in model.S:
             prenGen[s, i] = red_scenes[s, i]
-            qrenGen[s, i] = red_scenes[s, i] * 0.6
+            qrenGen[s, i] = red_scenes[s, i] * PF
         red_scenes[:, i] = np.zeros(nScenarios)
 
 d1 = {}
 for i in range(0, 6):
-    for j in range(0, 30):
+    for j in range(0, 33):
         d1[i, j] = red_scenes[i, j]
 
-PF = 0.6
+
 d2 = {}
 for k, v in d1.items():
     d2[k] = v * PF
@@ -134,23 +153,29 @@ model.PR = pyo.Param(model.S * model.renGen, initialize=prenGen)
 model.QR = pyo.Param(model.S * model.renGen, initialize=qrenGen)
 model.w0 = pyo.Param(initialize=1.0)
 model.V0 = pyo.Param(initialize=1.01)
-model.SGmax = pyo.Param(model.drgenSet, initialize={0: 0.05, 1: 0.06, 12: 0.05, 21: 0.05, 22: 0.06, 26: 0.05})
+model.SGmax = pyo.Param(model.drgenSet, initialize={12: 2.0, 14: 3.0, 24: 2.0, 32: 3.0})
 
 model.yMag = pyo.Param(model.J, model.J, initialize=dict_mag)
 model.yThe = pyo.Param(model.J, model.J, initialize=dict_the)
 
-model.ql = pyo.Var(model.S * model.J, initialize=0, within=NonNegativeReals, bounds=(0, 2))
-model.pl = pyo.Var(model.S * model.J, initialize=0, within=pyo.NonNegativeReals, bounds=(0, 2))
-model.pg = pyo.Var(model.S * model.J, initialize=0, within=pyo.NonNegativeReals, bounds=(0, 2))
-model.qg = pyo.Var(model.S * model.J, initialize=0, within=pyo.NonNegativeReals, bounds=(0, 2))
+# model.ql = pyo.Var(model.S * model.J, initialize=0.0015, within=pyo.NonNegativeReals, bounds=(0, 0.3))
+# model.pl = pyo.Var(model.S * model.J, initialize=0.0015, within=pyo.NonNegativeReals, bounds=(0, 0.3))
+# model.pg = pyo.Var(model.S * model.J, initialize=0.0015, within=pyo.NonNegativeReals, bounds=(0, 0.3))
+# model.qg = pyo.Var(model.S * model.J, initialize=0.0015, within=pyo.NonNegativeReals, bounds=(0, 0.3))
 
-model.v = pyo.Var(model.S * model.J, domain=pyo.NonNegativeReals, initialize=1.0, bounds=(0.9, 1.1))
-model.d = pyo.Var(model.S * model.J, domain=pyo.Reals, initialize=1.0, bounds=(-math.pi / 2, math.pi / 2))
+model.ql = pyo.Var(model.S * model.J, initialize=0.0015, within=pyo.Reals, bounds=(0, 0.3))
+model.pl = pyo.Var(model.S * model.J, initialize=0.0015, within=pyo.Reals, bounds=(0, 0.3))
+model.pg = pyo.Var(model.S * model.J, initialize=0.0015, within=pyo.Reals, bounds=(0, 0.3))
+model.qg = pyo.Var(model.S * model.J, initialize=0.0015, within=pyo.Reals, bounds=(0, 0.3))
 
-model.mp = pyo.Var(model.drgenSet, domain=pyo.NonNegativeReals, initialize=0.03, bounds=(0, 1))
-model.nq = pyo.Var(model.drgenSet, domain=pyo.NonNegativeReals, initialize=0.01, bounds=(0, 1))
+model.v = pyo.Var(model.S * model.J, domain=pyo.NonNegativeReals, initialize=1.0, bounds=(0.8, 1.2))
+# model.d = pyo.Var(model.S * model.J, domain=pyo.Reals, initialize=1.0, bounds=(-math.pi / 2, math.pi / 2))
+model.d = pyo.Var(model.S * model.J, domain=pyo.Reals, initialize=0.5, bounds=(-math.pi, math.pi ))
 
-model.w = pyo.Var(model.S, domain=pyo.NonNegativeReals, initialize=1, bounds=(0.990, 1.00))
+model.mp = pyo.Var(model.drgenSet, domain=pyo.Reals, initialize=-1, bounds=(-1.1, -0.04))
+model.nq = pyo.Var(model.drgenSet, domain=pyo.Reals, initialize=-1, bounds=(-1.1, -0.04))
+
+model.w = pyo.Var(model.S, domain=pyo.NonNegativeReals, initialize=1, bounds=(0.980, 1.20))
 
 
 def obj_expression(m):
@@ -160,9 +185,10 @@ def obj_expression(m):
                                      pyo.sin(model.yThe[i, j] + model.d[s, i] + model.d[s, j]) for j in m.J) for
                s, i in m.S * m.J)
 
-
 # def obj_expression(m):
 #     return sum(model.SPROBS[s] * pow((m.v[s, i] - 1.0), 2) for s, i in m.S * m.J)
+
+#
 
 
 model.o = pyo.Objective(rule=obj_expression, sense=pyo.minimize)
@@ -238,15 +264,15 @@ model.cons5 = pyo.Constraint(model.S * model.J, rule=ax_constraint_rule5)
 model.cons6 = pyo.Constraint(model.S * model.J, rule=ax_constraint_rule6)
 model.cons7 = pyo.Constraint(model.S * model.J, rule=ax_constraint_rule7)
 model.cons8 = pyo.Constraint(model.S * model.J, rule=ax_constraint_rule8)
-model.cons20 = pyo.Constraint(model.S * model.J, rule=maxGenCons)
-model.cons25 = pyo.Constraint(model.drgenSet, rule=dummyCons)
-model.cons26 = pyo.Constraint(model.drgenSet, rule=dummyCons2)
+# model.cons20 = pyo.Constraint(model.S * model.J, rule=maxGenCons)
+# model.cons25 = pyo.Constraint(model.drgenSet, rule=dummyCons)
+# model.cons26 = pyo.Constraint(model.drgenSet, rule=dummyCons2)
 
 model.name = "DroopControlledIMG"
 opt = pyo.SolverFactory("ipopt")
-# opt.options['acceptable_tol'] = 1e-3
+opt.options['acceptable_tol'] = 1e-4
 # instance.pprint()
-opt.options['max_iter'] = 100000000
+opt.options['max_iter'] = 10000
 
 log_infeasible_constraints(model, log_expression=True, log_variables=True)
 logging.basicConfig(filename='example2.log', level=logging.INFO)
@@ -273,6 +299,8 @@ for parmobject in model.component_objects(pyo.Var, active=True):
     for index in parmobject:
         vtoprint = pyo.value(parmobject[index])
         print("   ", index, vtoprint)
+
+
 
 total = 0
 total2 = 0
@@ -307,3 +335,6 @@ mpso = [1.589029, 0.034308, 1.138078, 0.919444, 0.050840, 1.144344]
 sum(mpso)
 nqso = [0.256885, 0.784892, 2.360074, 1.574549, 2.131491, 0.250231]
 sum(nqso)
+
+
+
